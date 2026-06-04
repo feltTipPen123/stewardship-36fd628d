@@ -1,0 +1,730 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="robots" content="noindex, nofollow" />
+<title>Stewardship — beyond the self-scheduling loop</title>
+<meta name="description" content="A research-grounded redesign of how a Bolter anima tends a standing responsibility." />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400..900;1,9..144,400..700&family=Hanken+Grotesk:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#F6F1E6;
+    --paper-2:#FCF9F1;
+    --card:#FFFDF7;
+    --ink:#211C16;
+    --ink-soft:#4A4138;
+    --ink-faint:#8A7E6E;
+    --line:#E3D8C3;
+    --line-strong:#CDBFA3;
+    --signal:#D9482B;      /* vermilion — "wake / problem / signal" */
+    --signal-deep:#A8341D;
+    --stable:#1E7A66;      /* teal — "stable / solution / done" */
+    --stable-deep:#155a4b;
+    --gold:#C18A1B;        /* amber — "caution / tradeoff" */
+    --violet:#5A4A8A;      /* for research accents */
+    --shadow: 0 1px 0 rgba(33,28,22,.04), 0 10px 30px -18px rgba(33,28,22,.45);
+    --shadow-lg: 0 2px 0 rgba(33,28,22,.05), 0 30px 60px -28px rgba(33,28,22,.5);
+    --maxw: 1180px;
+    --read: 760px;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth; scroll-padding-top:90px}
+  @media (prefers-reduced-motion: reduce){ html{scroll-behavior:auto} *{animation:none !important; transition:none !important} }
+  body{
+    margin:0; background:var(--paper); color:var(--ink);
+    font-family:"Hanken Grotesk", system-ui, sans-serif;
+    font-size:18px; line-height:1.62; letter-spacing:.002em;
+    -webkit-font-smoothing:antialiased;
+    background-image:
+      radial-gradient(circle at 12% -5%, rgba(217,72,43,.05), transparent 38%),
+      radial-gradient(circle at 92% 4%, rgba(30,122,102,.05), transparent 34%);
+    background-attachment:fixed;
+  }
+  /* subtle paper grain */
+  body::before{
+    content:""; position:fixed; inset:0; z-index:0; pointer-events:none; opacity:.35;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.5'/%3E%3C/svg%3E");
+    mix-blend-mode:multiply;
+  }
+  .wrap{position:relative; z-index:1; max-width:var(--maxw); margin:0 auto; padding:0 28px}
+
+  /* ---------- progress + topbar ---------- */
+  #progress{position:fixed; top:0; left:0; height:4px; width:0%; z-index:60;
+    background:linear-gradient(90deg,var(--signal),var(--gold),var(--stable)); transition:width .12s linear}
+  .topbar{position:fixed; top:0; left:0; right:0; z-index:50; height:62px;
+    display:flex; align-items:center; backdrop-filter:saturate(1.3) blur(8px);
+    background:rgba(246,241,230,.82); border-bottom:1px solid var(--line)}
+  .topbar .wrap{display:flex; align-items:center; gap:18px; width:100%}
+  .brand{font-family:"Fraunces",serif; font-weight:900; font-size:20px; letter-spacing:-.01em; display:flex; align-items:center; gap:9px}
+  .brand .dot{width:11px;height:11px;border-radius:50%;background:var(--signal);box-shadow:0 0 0 4px rgba(217,72,43,.18)}
+  .brand small{font-family:"JetBrains Mono",monospace; font-weight:500; font-size:11px; color:var(--ink-faint); letter-spacing:.04em; text-transform:uppercase}
+  .topnav{margin-left:auto; display:flex; gap:6px}
+  .topnav a{font-size:13px; font-weight:600; color:var(--ink-soft); text-decoration:none; padding:7px 11px; border-radius:8px}
+  .topnav a:hover{background:var(--paper-2); color:var(--ink)}
+  @media(max-width:880px){ .topnav{display:none} }
+
+  /* ---------- left rail dot-nav ---------- */
+  .rail{position:fixed; left:max(18px, calc((100vw - var(--maxw))/2 - 26px)); top:50%; transform:translateY(-50%); z-index:40; display:flex; flex-direction:column; gap:14px}
+  .rail a{display:flex; align-items:center; gap:10px; text-decoration:none; color:var(--ink-faint); font-size:11px; font-weight:700; letter-spacing:.04em; text-transform:uppercase}
+  .rail a .pip{width:11px;height:11px;border-radius:50%;border:2px solid var(--line-strong); background:transparent; transition:.2s}
+  .rail a .lbl{opacity:0; transform:translateX(-4px); transition:.2s; white-space:nowrap}
+  .rail a:hover .lbl, .rail a.active .lbl{opacity:1; transform:none}
+  .rail a.active{color:var(--ink)}
+  .rail a.active .pip{background:var(--signal); border-color:var(--signal); box-shadow:0 0 0 4px rgba(217,72,43,.16)}
+  @media(max-width:1320px){ .rail{display:none} }
+
+  /* ---------- hero ---------- */
+  header.hero{padding:140px 0 40px; position:relative}
+  .kicker{font-family:"JetBrains Mono",monospace; font-size:12.5px; letter-spacing:.18em; text-transform:uppercase; color:var(--signal-deep); font-weight:700; display:flex; align-items:center; gap:12px}
+  .kicker::before{content:""; width:36px; height:2px; background:var(--signal)}
+  h1.title{font-family:"Fraunces",serif; font-weight:900; font-size:clamp(42px, 7vw, 84px); line-height:.98; letter-spacing:-.028em; margin:.32em 0 .12em; max-width:14ch}
+  h1.title em{font-style:italic; color:var(--signal); font-weight:800}
+  .dek{font-size:clamp(19px,2.3vw,24px); color:var(--ink-soft); max-width:34ch; line-height:1.45; font-weight:500}
+  .hero-meta{display:flex; flex-wrap:wrap; gap:10px; margin-top:26px}
+  .chip{font-family:"JetBrains Mono",monospace; font-size:11.5px; font-weight:500; letter-spacing:.03em; padding:6px 11px; border:1px solid var(--line-strong); border-radius:100px; color:var(--ink-soft); background:var(--paper-2)}
+  .chip b{color:var(--ink)}
+  .hero-cta{display:flex; gap:12px; margin-top:30px; flex-wrap:wrap}
+  .btn{font-family:"Hanken Grotesk"; font-weight:700; font-size:15px; text-decoration:none; padding:13px 22px; border-radius:12px; display:inline-flex; align-items:center; gap:9px; transition:.18s; border:2px solid transparent}
+  .btn.primary{background:var(--ink); color:var(--paper-2)}
+  .btn.primary:hover{transform:translateY(-2px); box-shadow:var(--shadow-lg)}
+  .btn.ghost{border-color:var(--line-strong); color:var(--ink)}
+  .btn.ghost:hover{border-color:var(--ink); background:var(--paper-2)}
+
+  /* ---------- TL;DR card ---------- */
+  .tldr{margin:46px 0 10px; background:var(--card); border:1px solid var(--line); border-left:5px solid var(--signal);
+    border-radius:16px; padding:26px 30px; box-shadow:var(--shadow); position:relative}
+  .tldr h2{font-family:"Hanken Grotesk"; font-size:13px; letter-spacing:.14em; text-transform:uppercase; color:var(--signal-deep); margin:0 0 6px; display:flex; align-items:center; gap:9px}
+  .tldr .big{font-family:"Fraunces",serif; font-size:clamp(21px,2.6vw,27px); line-height:1.34; font-weight:500; letter-spacing:-.01em; color:var(--ink)}
+  .tldr .big b{color:var(--signal-deep); font-weight:700}
+  .tldr .big .t{color:var(--stable-deep); font-weight:700}
+
+  /* ---------- sections ---------- */
+  section{padding:64px 0; border-top:1px solid var(--line); position:relative}
+  .sec-head{display:flex; align-items:baseline; gap:16px; margin-bottom:8px}
+  .sec-num{font-family:"JetBrains Mono",monospace; font-size:13px; font-weight:700; color:var(--signal); letter-spacing:.05em}
+  h2.sec{font-family:"Fraunces",serif; font-weight:800; font-size:clamp(30px,4.4vw,46px); line-height:1.02; letter-spacing:-.022em; margin:0}
+  .sec-sub{color:var(--ink-faint); font-size:14px; font-family:"JetBrains Mono",monospace; letter-spacing:.02em; margin:6px 0 0}
+  .lede{font-size:20px; color:var(--ink-soft); max-width:var(--read); margin:20px 0 0; line-height:1.55}
+  p{max-width:var(--read)}
+  .body-col{max-width:var(--read)}
+
+  /* one-line callout */
+  .oneline{display:flex; gap:14px; align-items:flex-start; background:linear-gradient(180deg,var(--paper-2),var(--card)); border:1px solid var(--line); border-radius:14px; padding:16px 20px; margin:24px 0; max-width:var(--read); box-shadow:var(--shadow)}
+  .oneline .zap{flex:0 0 auto; width:34px; height:34px; border-radius:9px; display:grid; place-items:center; background:var(--signal); color:#fff; font-size:18px; box-shadow:0 4px 14px -4px var(--signal)}
+  .oneline.teal .zap{background:var(--stable); box-shadow:0 4px 14px -4px var(--stable)}
+  .oneline .txt{font-size:16.5px; font-weight:600; color:var(--ink); line-height:1.4}
+  .oneline .txt span{display:block; font-size:11px; font-weight:700; letter-spacing:.13em; text-transform:uppercase; color:var(--ink-faint); margin-bottom:2px}
+
+  /* stat cards */
+  .stats{display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:16px; margin:28px 0}
+  .stat{background:var(--card); border:1px solid var(--line); border-radius:14px; padding:22px; box-shadow:var(--shadow); position:relative; overflow:hidden}
+  .stat::after{content:""; position:absolute; right:-30px; top:-30px; width:90px; height:90px; border-radius:50%; background:radial-gradient(circle,rgba(217,72,43,.1),transparent 70%)}
+  .stat .num{font-family:"Fraunces",serif; font-weight:900; font-size:clamp(34px,5vw,48px); line-height:1; letter-spacing:-.02em; color:var(--signal)}
+  .stat.t .num{color:var(--stable)}
+  .stat .lab{font-weight:700; font-size:15px; margin:8px 0 4px}
+  .stat .src{font-family:"JetBrains Mono",monospace; font-size:11px; color:var(--ink-faint)}
+
+  /* deep dive */
+  details.dd{border:1px solid var(--line); border-radius:12px; margin:14px 0; background:var(--paper-2); max-width:var(--read); overflow:hidden}
+  details.dd>summary{cursor:pointer; list-style:none; padding:14px 18px; font-weight:700; font-size:15px; color:var(--ink); display:flex; align-items:center; gap:10px}
+  details.dd>summary::-webkit-details-marker{display:none}
+  details.dd>summary .tw{transition:.2s; color:var(--signal); font-family:"JetBrains Mono",monospace}
+  details.dd[open]>summary .tw{transform:rotate(90deg)}
+  details.dd>summary .tag{margin-left:auto; font-family:"JetBrains Mono",monospace; font-size:10.5px; letter-spacing:.06em; text-transform:uppercase; color:var(--ink-faint); border:1px solid var(--line-strong); padding:3px 8px; border-radius:100px}
+  details.dd .ddbody{padding:4px 18px 18px; color:var(--ink-soft); font-size:15.5px}
+  details.dd .ddbody p{max-width:none}
+
+  /* before / after */
+  .ba{display:grid; grid-template-columns:1fr 1fr; gap:16px; margin:26px 0}
+  @media(max-width:760px){ .ba{grid-template-columns:1fr} }
+  .ba .col{border-radius:14px; padding:20px 22px; border:1px solid var(--line); box-shadow:var(--shadow)}
+  .ba .before{background:linear-gradient(180deg,#fbeee9,#fff8f4); border-color:#f0cdc0}
+  .ba .after{background:linear-gradient(180deg,#e9f4f0,#f6fbf9); border-color:#bfe0d6}
+  .ba h4{margin:0 0 10px; font-family:"JetBrains Mono",monospace; font-size:11.5px; letter-spacing:.1em; text-transform:uppercase; display:flex; align-items:center; gap:8px}
+  .ba .before h4{color:var(--signal-deep)}
+  .ba .after h4{color:var(--stable-deep)}
+  .ba ul{margin:0; padding-left:18px} .ba li{margin:7px 0; font-size:15px; color:var(--ink-soft)}
+  .ba li b{color:var(--ink)}
+
+  /* pillar cards */
+  .pillars{display:grid; grid-template-columns:repeat(auto-fit,minmax(330px,1fr)); gap:18px; margin:30px 0}
+  .pillar{background:var(--card); border:1px solid var(--line); border-radius:18px; padding:26px; box-shadow:var(--shadow); position:relative; transition:.2s}
+  .pillar:hover{transform:translateY(-3px); box-shadow:var(--shadow-lg); border-color:var(--line-strong)}
+  .pillar .pn{font-family:"Fraunces",serif; font-weight:900; font-size:54px; line-height:.8; color:var(--line-strong); position:absolute; top:18px; right:22px}
+  .pillar h3{font-family:"Fraunces",serif; font-weight:800; font-size:22px; letter-spacing:-.01em; margin:0 0 4px; max-width:13ch}
+  .pillar .sol{display:inline-block; font-family:"JetBrains Mono",monospace; font-size:10.5px; letter-spacing:.08em; text-transform:uppercase; color:var(--stable-deep); background:#e3f1ec; border:1px solid #bfe0d6; padding:3px 9px; border-radius:100px; margin-bottom:12px}
+  .pillar p{font-size:15px; color:var(--ink-soft); margin:.5em 0; max-width:none}
+  .pillar .fixes{font-size:13px; color:var(--ink-faint); border-top:1px dashed var(--line-strong); margin-top:14px; padding-top:12px}
+  .pillar .fixes b{color:var(--signal-deep)}
+
+  /* code / mapping */
+  .map{background:#26211a; color:#efe7d6; border-radius:16px; padding:24px 26px; margin:22px 0; box-shadow:var(--shadow-lg); overflow-x:auto; font-family:"JetBrains Mono",monospace; font-size:13.5px; line-height:1.7; max-width:100%}
+  .map .c{color:#9d8f76}
+  .map .k{color:#e8a87c} .map .s{color:#8fcbb0} .map .f{color:#d9b85f}
+  .map .h{color:#fff; font-weight:700}
+  .filechip{font-family:"JetBrains Mono",monospace; font-size:12px; background:var(--paper-2); border:1px solid var(--line-strong); padding:2px 8px; border-radius:6px; color:var(--signal-deep); white-space:nowrap}
+
+  /* lifecycle diagram */
+  .flow{display:grid; gap:0; margin:28px 0; max-width:var(--read)}
+  .step{display:grid; grid-template-columns:54px 1fr; gap:18px; align-items:start; position:relative; padding-bottom:26px}
+  .step:not(:last-child)::before{content:""; position:absolute; left:26px; top:46px; bottom:0; width:2px; background:linear-gradient(var(--line-strong),var(--line))}
+  .step .ic{width:54px; height:54px; border-radius:14px; display:grid; place-items:center; font-size:23px; background:var(--card); border:2px solid var(--line-strong); box-shadow:var(--shadow); z-index:1}
+  .step.signal .ic{border-color:var(--signal); color:var(--signal)}
+  .step.stable .ic{border-color:var(--stable); color:var(--stable)}
+  .step .cont h4{margin:6px 0 4px; font-family:"Fraunces",serif; font-size:19px; font-weight:800}
+  .step .cont p{margin:0; font-size:15px; color:var(--ink-soft); max-width:none}
+  .step .cont .mini{font-family:"JetBrains Mono",monospace; font-size:12px; color:var(--ink-faint); margin-top:4px}
+
+  /* risk grid */
+  .risks{display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:14px; margin:24px 0}
+  .risk{border:1px solid var(--line); border-radius:13px; padding:18px 20px; background:var(--card); box-shadow:var(--shadow)}
+  .risk h4{margin:0 0 6px; font-size:16px; display:flex; gap:8px; align-items:center}
+  .risk h4 .b{font-family:"JetBrains Mono",monospace; font-size:10px; padding:2px 7px; border-radius:5px; letter-spacing:.05em; text-transform:uppercase; font-weight:700}
+  .risk.accept h4 .b{background:#e3f1ec; color:var(--stable-deep)} .risk.watch h4 .b{background:#faf0d8; color:var(--gold)} .risk.no h4 .b{background:#fbe5df; color:var(--signal-deep)}
+  .risk p{font-size:14px; color:var(--ink-soft); margin:0; max-width:none}
+
+  /* references */
+  .refs{columns:2; column-gap:34px; margin-top:18px}
+  @media(max-width:760px){ .refs{columns:1} }
+  .refs .ref{break-inside:avoid; font-size:13px; color:var(--ink-soft); padding:8px 0; border-bottom:1px solid var(--line); line-height:1.4}
+  .refs .ref a{color:var(--signal-deep); text-decoration:none; word-break:break-word}
+  .refs .ref a:hover{text-decoration:underline}
+  .refs .ref b{color:var(--ink); font-weight:700}
+  cite{font-style:normal; font-family:"JetBrains Mono",monospace; font-size:11px; color:var(--violet); font-weight:700; vertical-align:super; cursor:default}
+
+  mark{background:linear-gradient(180deg,transparent 55%, rgba(217,72,43,.28) 55%); color:inherit; padding:0 1px}
+  mark.t{background:linear-gradient(180deg,transparent 55%, rgba(30,122,102,.3) 55%)}
+  strong{font-weight:700; color:var(--ink)}
+  a.inl{color:var(--signal-deep); text-decoration:underline; text-underline-offset:2px}
+
+  footer{padding:60px 0 90px; border-top:1px solid var(--line); color:var(--ink-faint); font-size:14px}
+  footer .wrap{display:flex; justify-content:space-between; gap:20px; flex-wrap:wrap; align-items:center}
+  footer b{color:var(--ink)}
+
+  .reveal{opacity:0; transform:translateY(18px); transition:opacity .6s ease, transform .6s ease}
+  .reveal.in{opacity:1; transform:none}
+
+  /* back to top */
+  #toTop{position:fixed; right:22px; bottom:22px; z-index:45; width:46px; height:46px; border-radius:50%; background:var(--ink); color:var(--paper-2); border:none; cursor:pointer; font-size:18px; box-shadow:var(--shadow-lg); opacity:0; pointer-events:none; transition:.25s}
+  #toTop.show{opacity:1; pointer-events:auto}
+  #toTop:hover{background:var(--signal)}
+</style>
+</head>
+<body>
+<div id="progress"></div>
+
+<div class="topbar">
+  <div class="wrap">
+    <span class="brand"><span class="dot"></span> Stewardship <small>· anima &times; responsibility</small></span>
+    <nav class="topnav">
+      <a href="#problem">Problem</a>
+      <a href="#forces">The two forces</a>
+      <a href="#research">Research</a>
+      <a href="#proposal">Proposal</a>
+      <a href="#bolter">In Bolter</a>
+      <a href="#risks">Tradeoffs</a>
+      <a href="#refs">Refs</a>
+    </nav>
+  </div>
+</div>
+
+<nav class="rail" aria-label="section navigation">
+  <a href="#top" data-sec="top"><span class="pip"></span><span class="lbl">Top</span></a>
+  <a href="#problem" data-sec="problem"><span class="pip"></span><span class="lbl">Problem</span></a>
+  <a href="#forces" data-sec="forces"><span class="pip"></span><span class="lbl">Two forces</span></a>
+  <a href="#research" data-sec="research"><span class="pip"></span><span class="lbl">Research</span></a>
+  <a href="#proposal" data-sec="proposal"><span class="pip"></span><span class="lbl">Proposal</span></a>
+  <a href="#bolter" data-sec="bolter"><span class="pip"></span><span class="lbl">In Bolter</span></a>
+  <a href="#lifecycle" data-sec="lifecycle"><span class="pip"></span><span class="lbl">Lifecycle</span></a>
+  <a href="#risks" data-sec="risks"><span class="pip"></span><span class="lbl">Tradeoffs</span></a>
+  <a href="#refs" data-sec="refs"><span class="pip"></span><span class="lbl">References</span></a>
+</nav>
+
+<a id="top"></a>
+<header class="hero">
+  <div class="wrap">
+    <div class="kicker">Bolter internal · design proposal · v1</div>
+    <h1 class="title">Stop <em>looping.</em><br>Start <em>tending.</em></h1>
+    <p class="dek">An anima shouldn't babysit a timer. It should hold a responsibility the way a good steward does — with a charter, a memory, and the judgment to know when it's done and when to ask.</p>
+
+    <div class="hero-meta">
+      <span class="chip">🧠 <b>ADHD-friendly</b> read</span>
+      <span class="chip">⏱ <b>4 min</b> skim · <b>14 min</b> full</span>
+      <span class="chip">📚 <b>40+</b> sources</span>
+      <span class="chip">🛠 maps to real <b>bolter</b> files</span>
+    </div>
+
+    <div class="hero-cta">
+      <a class="btn primary" href="#proposal">Jump to the proposal →</a>
+      <a class="btn ghost" href="#forces">Why today's model breaks</a>
+    </div>
+
+    <div class="tldr reveal">
+      <h2>⚡ The whole thing in 30 seconds</h2>
+      <p class="big">Today an anima owns a responsibility by <b>self-scheduling a timer and re-running a loop.</b> That fights two laws of nature at once: AI quality <b>decays as context grows</b>, and <b>a loop never tells you whether you're making progress.</b> The fix isn't a smarter loop — it's a <span class="t">durable, verifiable, event-driven object the anima tends:</span> a charter, a compact memory, signal-driven wakeups, and a fresh-eyes check on progress. So it <span class="t">just works</span> — and knows when to bother you.</p>
+    </div>
+  </div>
+</header>
+
+<main>
+
+<!-- ============ PROBLEM ============ -->
+<section id="problem">
+  <div class="wrap">
+    <div class="sec-head"><span class="sec-num">01</span><h2 class="sec">How an anima holds a responsibility today</h2></div>
+    <p class="sec-sub">// the self-scheduling loop, as it actually works in bolter</p>
+
+    <p class="lede">When you hand an anima a standing job — "give me a morning brief", "watch this deal", "keep the roadmap tidy" — it creates a <span class="filechip">scheduled_tasks</span> row with a cron string or a one-time <code>runAt</code>. A clock fires it. The anima wakes, does a turn, posts, and goes quiet until the next tick.</p>
+
+    <div class="oneline">
+      <div class="zap">⚙️</div>
+      <div class="txt"><span>In one line</span>The clock owns the anima. The anima owns a cron string. Nobody owns the <em>outcome</em>.</div>
+    </div>
+
+    <p>That's elegant, and it shipped. But look closely at what each fire actually has to work with, and three structural gaps appear — confirmed straight from the code:</p>
+
+    <div class="ba">
+      <div class="col before">
+        <h4>◢ what a fire gets today</h4>
+        <ul>
+          <li>A one-line <b>description</b> ("Morning brief — calendar + priorities").</li>
+          <li>A <b>lastRunAt</b> timestamp.</li>
+          <li>Whatever <b>chat history</b> survived the context window.</li>
+          <li><span class="filechip">mustDeliverVisibleReply</span> — it must post <em>something</em>.</li>
+        </ul>
+      </div>
+      <div class="col before">
+        <h4>◢ what it does NOT have</h4>
+        <ul>
+          <li><b>No definition of success.</b> No acceptance criteria, no "done".</li>
+          <li><b>No durable state.</b> Checkpoints were removed; <code>nextRunAt</code> is never even populated.</li>
+          <li><b>No memory of the last fire</b> beyond chat that may have been pruned.</li>
+          <li><b>No way to say "wake me when X happens"</b> — only the clock.</li>
+        </ul>
+      </div>
+    </div>
+
+    <p>So a cron responsibility <strong>fires forever</strong>. The anima re-derives "where are we?" from decaying chat, grades its own work against a vague sentence, and loops. For a five-minute reminder that's fine. For the thing Bolter actually promises — <em>take this off my plate for weeks</em> — it's standing on two fault lines.</p>
+
+    <details class="dd">
+      <summary><span class="tw">▸</span> Deep dive: the exact mechanism <span class="tag">from the codebase</span></summary>
+      <div class="ddbody">
+        <p><b>Trigger:</b> an in-process scheduler (<span class="filechip">scheduler.ts</span>) registers <code>node-cron</code> jobs and <code>setTimeout</code> timers from <span class="filechip">scheduled_tasks</span>. On fire it enqueues a durable <span class="filechip">dispatch_jobs</span> row (idempotency-keyed) — it does <em>not</em> call the anima directly.</p>
+        <p><b>Pickup:</b> a worker claims the job (<code>FOR UPDATE SKIP LOCKED</code>) and runs <span class="filechip">runScheduledJob → runAnimaTurn</span> with the description as a "Scheduler" system message, <code>executionClassOverride: 'heavy_tools'</code>, and no <code>decline_response</code>.</p>
+        <p><b>Self-scheduling tools:</b> <code>bolter_schedule_task</code> / <code>bolter_update_task</code> / <code>bolter_cancel_task</code> / <code>bolter_list_tasks</code>. The anima can refine its cron or <code>runAt</code>, but cannot say "sleep until this event" or "wake me in 5 min" without an explicit re-schedule.</p>
+        <p><b>Two parallel notions of "task":</b> <span class="filechip">scheduled_tasks</span> (recurring duties) and <span class="filechip">anima_tasks</span> (user-facing multi-dispatch work, with a real status enum) — plus a vestigial <span class="filechip">tasks</span> dispatch-tracker whose <code>checkpointCount</code>/<code>progress</code> fields are no longer written. Progress lives on <em>work</em>, never on the <em>duty</em>.</p>
+      </div>
+    </details>
+  </div>
+</section>
+
+<!-- ============ TWO FORCES ============ -->
+<section id="forces">
+  <div class="wrap">
+    <div class="sec-head"><span class="sec-num">02</span><h2 class="sec">The two forces the loop is fighting</h2></div>
+    <p class="sec-sub">// neither is a bug you can patch — they're properties of the medium</p>
+    <p class="lede">The self-scheduling loop isn't badly built. It's built against physics. Two well-documented effects push directly against "an AI tends a job reliably for weeks," and a loop happens to maximize <em>both</em> of them.</p>
+
+    <h3 style="font-family:'Fraunces',serif; font-size:26px; margin:40px 0 0; color:var(--signal-deep)">Force #1 — The decay function</h3>
+    <p class="body-col"><strong>An AI gets worse as its context grows — long before the window is "full."</strong> The advertised context window is not the usable one. And in a long autonomous run, errors don't just happen — they <em>compound</em>.</p>
+
+    <div class="stats">
+      <div class="stat">
+        <div class="num">~2K</div>
+        <div class="lab">Effective context for many models</div>
+        <div class="src">tokens where ≥85% accuracy holds, vs. windows advertised at 128K–2M · NoLiMa, ICML&nbsp;2025 <cite>4</cite></div>
+      </div>
+      <div class="stat">
+        <div class="num">−39%</div>
+        <div class="lab">Drop when info arrives across turns</div>
+        <div class="src">vs. all-at-once, across 200k+ convos; mostly lost <em>reliability</em>, not skill · Microsoft/Salesforce <cite>19</cite></div>
+      </div>
+      <div class="stat">
+        <div class="num">36%</div>
+        <div class="lab">Success of a 20-step task at 95%/step</div>
+        <div class="src">0.95²⁰ ≈ 0.36. Reliability decays geometrically with trajectory length <cite>20,22</cite></div>
+      </div>
+      <div class="stat">
+        <div class="num">+22.7pt</div>
+        <div class="lab">Rise in next-error odds after one slip</div>
+        <div class="src">one off-track action makes the next one likelier — failures self-reinforce <cite>21</cite></div>
+      </div>
+    </div>
+
+    <div class="oneline">
+      <div class="zap">📉</div>
+      <div class="txt"><span>Why a loop makes it worse</span>A self-scheduled loop accumulates context <em>and</em> lengthens the trajectory — the exact two variables the decay function punishes. Bigger model windows don't save you: it's a property of attention, not a quota.</div>
+    </div>
+
+    <details class="dd">
+      <summary><span class="tw">▸</span> Deep dive: <em>why</em> quality decays with length <span class="tag">mechanism</span></summary>
+      <div class="ddbody">
+        <p><b>Lost in the middle.</b> Models show a U-shaped attention curve — strong at the start and end of context, weak in the middle — and the dip deepens as you add material. With the answer mid-context, GPT-3.5's multi-doc QA once fell <em>below</em> its no-document baseline: the right context actively hurt.<cite>1</cite></p>
+        <p><b>Context rot.</b> Chroma tested 18 frontier models and found <em>every one</em> degrades as input grows, even on trivial tasks; semantically-similar distractors compound the loss; models do better on focused prompts than full ones.<cite>3</cite> RULER and HELMET show the real usable size is far below the advertised one, and simple needle-in-haystack demos badly overstate it.<cite>5,6</cite></p>
+        <p><b>The math of compounding.</b> With constant per-step accuracy <code>p</code> and no self-correction, the horizon you can reach before failure is <code>H_s(p) = ⌈ln(s)/ln(p)⌉</code> — so small step-accuracy gains buy <em>exponential</em> horizon. The lever is fewer, more reliable steps.<cite>22</cite></p>
+        <p><b>Agentic accumulation.</b> Drew Breunig's taxonomy: <em>poisoning</em> (a hallucination re-cited as fact — DeepMind's Gemini-plays-Pokémon fixating on impossible goals), <em>distraction</em> (the model parrots its own history instead of planning), <em>confusion</em> (too many tools/irrelevant content), <em>clash</em> (new info conflicts with old).<cite>15,17,18</cite></p>
+      </div>
+    </details>
+
+    <h3 style="font-family:'Fraunces',serif; font-size:26px; margin:48px 0 0; color:var(--signal-deep)">Force #2 — A loop can't tell you it's working</h3>
+    <p class="body-col"><strong>A timer encodes <em>when</em> to act. It says nothing about <em>whether the job is getting done.</em></strong> Without an external definition of success, an agent asked to judge itself defaults to the most expensive possible answer.</p>
+
+    <div class="oneline">
+      <div class="zap">🔁</div>
+      <div class="txt"><span>The AutoGPT lesson, in one sentence</span>An agent grading its own vague goal "consistently found ways to improve completed work, with no concept of 'good enough'" — so it never stops.<cite>7,8</cite></div>
+    </div>
+
+    <p class="body-col">This is the documented failure of the whole AutoGPT/BabyAGI generation, and it's a <em>termination-design</em> failure, not an intelligence failure. Three traps, all present in a bare cron loop:</p>
+
+    <div class="ba">
+      <div class="col before">
+        <h4>◢ self-grading is biased</h4>
+        <ul>
+          <li>Models rate <b>their own outputs higher</b> (self-enhancement bias), and judging your own narration is gameable — reword the reasoning, "improve" the score.<cite>10,11</cite></li>
+          <li>An agent optimizing a vague spec drifts toward <b>whatever is easiest to declare done</b> — reward hacking, in-context.<cite>21,23</cite></li>
+        </ul>
+      </div>
+      <div class="col before">
+        <h4>◢ "done" has no meaning here</h4>
+        <ul>
+          <li>A cron task has <b>no success field and no completion condition.</b> It fires until a human disables it.</li>
+          <li>No <b>no-progress detection</b>: the same situation produces the same action, forever, with nobody noticing.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="oneline teal">
+      <div class="zap">✓</div>
+      <div class="txt"><span>So the goal becomes</span>Make a responsibility carry its own definition of success, judge progress with fresh eyes, and give the anima the right to stop — or to ask.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ RESEARCH ============ -->
+<section id="research">
+  <div class="wrap">
+    <div class="sec-head"><span class="sec-num">03</span><h2 class="sec">What the field already figured out</h2></div>
+    <p class="sec-sub">// the patterns that survive contact with production — skim the cards, open what you want</p>
+    <p class="lede">Every credible long-running agent system has converged on a similar playbook. None of it is exotic. Here are the six ideas we're building on — collapsed by default so you can take only what you need.</p>
+
+    <details class="dd" open>
+      <summary><span class="tw">▸</span> 1 · Wake on signals, not on a timer <span class="tag">scheduling</span></summary>
+      <div class="ddbody">
+        <p>Event-driven activation beats polling by 70–90% on latency and — more importantly — gives <b>zero wasted runs</b>: the agent runs only when there's real work. The mature pattern is three triggers: <b>events</b> (react to change), <b>cron</b> (genuinely periodic work like a daily brief), and a low-frequency <b>heartbeat</b> that is a <em>reasoning gate</em> — "is anything worth doing?" — not a blind act.<cite>23,26,27</cite> The classic agent models say the same: BDI separates <em>deliberation</em> from <em>execution</em> and re-deliberates on events, not on a clock.<cite>28</cite></p>
+      </div>
+    </details>
+
+    <details class="dd">
+      <summary><span class="tw">▸</span> 2 · Externalize memory; re-ground every wake <span class="tag">memory</span></summary>
+      <div class="ddbody">
+        <p>Generative Agents (Stanford "Smallville") keep a <b>memory stream</b> retrieved by recency × importance × relevance, plus periodic <b>reflection</b> into higher-level notes.<cite>6</cite> MemGPT/Letta treat memory like an OS — core/recall/archival tiers the agent self-edits.<cite>20,41</cite> Anthropic's harness re-grounds on a fixed <b>startup routine</b> every session (read progress files + logs, consult the feature list, verify the environment, <em>then</em> act) and uses a persistent <b>memory tool</b> (+39% on internal evals vs. baseline).<cite>13,25,43,46</cite> The rule: trust durable notes, never accumulated in-context narration.</p>
+      </div>
+    </details>
+
+    <details class="dd">
+      <summary><span class="tw">▸</span> 3 · Recitation — keep the goal in recent context <span class="tag">context engineering</span></summary>
+      <div class="ddbody">
+        <p>Manus rewrites a <code>todo.md</code> every step, which <b>recites the objective into the end of the context</b> — exactly where attention is strongest — to fight lost-in-the-middle and goal drift across 50-tool-call tasks.<cite>10</cite> Claude Code's internal TodoWrite is the same trick. Cheap, model-agnostic, high-leverage.<cite>6b</cite></p>
+      </div>
+    </details>
+
+    <details class="dd">
+      <summary><span class="tw">▸</span> 4 · Judge progress against criteria — with a fresh lens <span class="tag">verification</span></summary>
+      <div class="ddbody">
+        <p>Don't let the agent grade its own homework. Prefer <b>verifiable completion</b> (an external check) over <b>declared completion</b> ("I'm done").<cite>18</cite> Anthropic's harness encodes this as a feature list with a <code>passes</code> boolean and an explicit "it is unacceptable to edit the tests."<cite>46</cite> Cognition's code-review loop runs in <b>completely clean context</b> and catches ~58% of severe bugs <em>because</em> it avoids the author's biases.<cite>4</cite> Use a different lens/family, and judge <em>actions and state deltas</em>, not the agent's prose.<cite>10,13</cite></p>
+      </div>
+    </details>
+
+    <details class="dd">
+      <summary><span class="tw">▸</span> 5 · Design termination explicitly <span class="tag">stopping</span></summary>
+      <div class="ddbody">
+        <p>"Agent design <em>is</em> termination design." Four stop classes you should implement all of: <b>goal-based</b> (verifiable, not declared), <b>resource budgets</b> (max beats / tokens / cost), <b>pathology</b> (result-aware no-progress + loop + confidence-collapse detection), and <b>external</b> (user cancel, circuit breaker).<cite>18,19b</cite> The honest framing is the halting problem — stopping conditions are the pragmatic answer to fundamental uncertainty.</p>
+      </div>
+    </details>
+
+    <details class="dd">
+      <summary><span class="tw">▸</span> 6 · Durable, dormant, resumable — and accumulate across runs <span class="tag">durability</span></summary>
+      <div class="ddbody">
+        <p>Model a long responsibility as a <b>durable workflow that hibernates and wakes on a signal/timer</b>, checkpointing after each step, with idempotent side effects — not a live <code>while(!done)</code> process.<cite>30,31</cite> Cloudflare's Durable-Objects pattern (hibernate at zero cost, wake on alarm, reconstitute from storage) maps almost 1:1 onto a per-user anima.<cite>13a,22</cite> And Devin's lesson: <b>each scheduled run should build on the last</b>, not start cold — "the longer it runs, the more useful its output, because it's building on a growing body of its own context."<cite>18b</cite></p>
+        <p>One caveat from the same literature: parallelize <em>reads</em>, serialize <em>writes</em>. Multi-agent fan-out wins for read-only investigation (Anthropic: +90% on research) but conflicting parallel <em>decisions</em> produce unmergeable output (Cognition's "Don't Build Multi-Agents").<cite>2,3,33,35</cite></p>
+      </div>
+    </details>
+  </div>
+</section>
+
+<!-- ============ PROPOSAL ============ -->
+<section id="proposal">
+  <div class="wrap">
+    <div class="sec-head"><span class="sec-num">04</span><h2 class="sec">The proposal: <span style="color:var(--stable)">Stewardship</span></h2></div>
+    <p class="sec-sub">// reframe a responsibility from "a recurring alarm" to "a durable object an anima tends"</p>
+    <p class="lede">One idea, six pillars. A responsibility stops being a cron string and becomes a small, durable object with a <b>charter</b>, a <b>memory</b>, <b>triggers</b>, and a <b>verdict</b>. The anima doesn't loop over it — it <em>tends</em> it: wakes when there's reason to, re-grounds from durable state, does a short beat, has its progress checked by fresh eyes, and decides when to act next or to ask you.</p>
+
+    <div class="oneline teal">
+      <div class="zap">🌱</div>
+      <div class="txt"><span>The reframe</span>A <b>beat</b> replaces a <b>tick</b>: short, small-context, re-grounded, assessed, and logged — so each one is reliable and each one builds on the last.</div>
+    </div>
+
+    <div class="pillars">
+      <div class="pillar reveal">
+        <div class="pn">1</div>
+        <span class="sol">fixes self-grading + drift</span>
+        <h3>A charter, not a cron string</h3>
+        <p>Each responsibility carries <b>intent</b> (what success looks like, in the owner's words + the anima's restatement), <b>acceptance criteria</b> (verifiable signals), and explicit <b>scope &amp; guardrails</b>. Written once, <b>recited at the top of every beat.</b></p>
+        <p class="fixes"><b>Kills:</b> grading a vague sentence; goal drift over weeks.</p>
+      </div>
+
+      <div class="pillar reveal">
+        <div class="pn">2</div>
+        <span class="sol">fixes context rot + amnesia</span>
+        <h3>Durable working state, not chat archaeology</h3>
+        <p>Every responsibility owns a <b>compact "where things stand"</b> record the anima maintains, plus an <b>append-only ledger</b> of beats. At wake it re-grounds from <em>this</em> — small and high-signal — not from chat that's been pruned. Restorable compression: keep the pointer, drop the bulk.</p>
+        <p class="fixes"><b>Kills:</b> the decay function's first variable — unbounded accumulating context.</p>
+      </div>
+
+      <div class="pillar reveal">
+        <div class="pn">3</div>
+        <span class="sol">fixes the polling anti-pattern</span>
+        <h3>Wake on signals, not just the clock</h3>
+        <p>First-class <b>event triggers</b> — inbound mail, calendar change, a peer anima finishing, a threshold crossed, the owner replying. <b>Dormant until signaled.</b> Cron only for genuinely periodic beats; a low-frequency <b>heartbeat that reasons</b> ("anything worth doing?") before it acts.</p>
+        <p class="fixes"><b>Kills:</b> dispatches burned on "nothing happened"; doom-looping on a timer.</p>
+      </div>
+
+      <div class="pillar reveal">
+        <div class="pn">4</div>
+        <span class="sol">fixes "done" + self-bias</span>
+        <h3>Progress judged by a fresh lens</h3>
+        <p>Every beat that mutates or claims completion ends with an <b>assessment in clean context</b> against the acceptance criteria — a different lens, not the anima's own narration. Produces real states: <b>advancing · stable · blocked · done.</b> Result-aware no-progress and loop detection built in.</p>
+        <p class="fixes"><b>Kills:</b> no concept of "good enough"; silent doom loops.</p>
+      </div>
+
+      <div class="pillar reveal">
+        <div class="pn">5</div>
+        <span class="sol">makes "just works" honest</span>
+        <h3>Adaptive cadence + honest escalation</h3>
+        <p>Next-wake is <b>chosen from the assessed state</b> within guardrails: back off when stable, lean in when active, sleep when waiting on an event, <b>surface a crisp ask</b> when blocked or low-confidence. Hard <b>budgets</b> + circuit breakers. Knowing when to bother you is part of the product.</p>
+        <p class="fixes"><b>Kills:</b> fire-forever cron; runaway cost; silent failure.</p>
+      </div>
+
+      <div class="pillar reveal">
+        <div class="pn">6</div>
+        <span class="sol">fixes trajectory-length decay</span>
+        <h3>Short beats · delegate reads · serialize writes</h3>
+        <p>Keep each beat <b>short and small-context</b> to minimize both decay variables. For multi-step work the tending anima holds compact continuous context and spawns <b>fresh-context sub-beats</b> for parallel investigation that return distilled findings — but <b>decisions and writes stay single-threaded.</b></p>
+        <p class="fixes"><b>Kills:</b> long brittle trajectories; conflicting parallel writes.</p>
+      </div>
+    </div>
+
+    <div class="oneline">
+      <div class="zap">🧭</div>
+      <div class="txt"><span>How the six fit together</span>P1 gives the beat a <em>destination</em>. P2 gives it <em>grounding</em>. P3 decides <em>when</em> it happens. P4 decides <em>whether it counts</em>. P5 decides <em>what's next</em>. P6 keeps each beat <em>inside the reliable zone</em>.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ IN BOLTER ============ -->
+<section id="bolter">
+  <div class="wrap">
+    <div class="sec-head"><span class="sec-num">05</span><h2 class="sec">What this means in the codebase</h2></div>
+    <p class="sec-sub">// concrete, reuse-first, aggressive cutover — not a parallel system</p>
+    <p class="lede">This is deliberately an evolution of what's there, not a rewrite. It reuses the <span class="filechip">dispatch_jobs</span> queue, the <span class="filechip">dispatch_complete</span> waiter machinery, the memory infra, and the event sources we already capture in-process. We promote <span class="filechip">scheduled_tasks</span> in place rather than running two schedulers.</p>
+
+    <div class="map">
+<span class="c">// 1 · Promote the thin cron row into a real responsibility object</span>
+<span class="c">//    (evolve scheduled_tasks; the vestigial `tasks` checkpoint fields retire)</span>
+<span class="k">responsibilities</span> {
+  id, animaId, groupId,
+  <span class="f">charter</span>:      jsonb,  <span class="c">// { intent, restatement, scope, guardrails }</span>
+  <span class="f">acceptance</span>:   jsonb,  <span class="c">// verifiable criteria → checked by the fresh lens</span>
+  <span class="f">state</span>:        jsonb,  <span class="c">// compact "where things stand" (the re-ground source)</span>
+  <span class="f">status</span>:       <span class="s">'advancing'|'stable'|'blocked'|'done'|'retired'</span>,
+  <span class="f">triggers</span>:     jsonb,  <span class="c">// [{kind:'cron'|'event'|'heartbeat', ...}]  ← P3</span>
+  <span class="f">nextWakeAt</span>:   timestamp,  <span class="c">// finally populated — adaptive  ← P5</span>
+  <span class="f">budget</span>:       jsonb,  <span class="c">// { maxBeats, tokenCeiling, costCeiling }  ← P5</span>
+}
+<span class="k">responsibility_beats</span> {   <span class="c">// append-only ledger — replaces "loop & forget"  ← P2</span>
+  id, responsibilityId, firedBy, summary,
+  <span class="f">assessment</span>: jsonb,  <span class="c">// { verdict, criteriaMet[], confidence }  ← P4</span>
+  <span class="f">nextWake</span>:   jsonb,  <span class="c">// the decision + reason</span>
+}
+
+<span class="c">// 2 · scheduler.ts — keep cron/timer; add two paths</span>
+<span class="h">+ registerEventTrigger()</span>  <span class="c">// subscribe to existing in-process event sources (no dupes)</span>
+<span class="h">+ adaptiveWake()</span>         <span class="c">// honor responsibilities.nextWakeAt instead of forever-cron</span>
+<span class="h">+ heartbeatBeat()</span>        <span class="c">// low-freq reasoning gate: load state → "act or sleep?"</span>
+
+<span class="c">// 3 · run-scheduled-job.ts → run-beat.ts</span>
+<span class="k">async function</span> <span class="f">runBeat</span>(responsibilityId) {
+  <span class="k">const</span> ctx = <span class="f">reground</span>(charter, state, lastK(beats))   <span class="c">// NOT raw chat  ← P2/P3 recitation</span>
+  <span class="k">const</span> work = <span class="f">doShortBeat</span>(ctx)                       <span class="c">// small context, may fan-out reads  ← P6</span>
+  <span class="k">const</span> verdict = <span class="f">assessFreshLens</span>(work, acceptance) <span class="c">// clean context, diff lens  ← P4</span>
+  <span class="f">appendLedger</span>(work, verdict); <span class="f">updateState</span>(work)
+  <span class="f">decideNextWake</span>(verdict) <span class="k">|| </span><span class="f">escalateToOwner</span>(verdict)   <span class="c">// ← P5</span>
+}
+
+<span class="c">// 4 · new model-facing tools (deprecate "fire forever + grade yourself")</span>
+<span class="f">bolter_set_charter</span> · <span class="f">bolter_update_responsibility_state</span> · <span class="f">bolter_set_next_beat</span>
+<span class="f">bolter_watch_event</span> · <span class="f">bolter_escalate_to_owner</span>
+
+<span class="c">// 5 · system-prompt.ts — recite at the TOP of the beat, not a passive list</span>
+<span class="h">## This beat</span>  →  charter · acceptance criteria · compact state · last beat &amp; verdict
+    </div>
+
+    <div class="oneline teal">
+      <div class="zap">♻️</div>
+      <div class="txt"><span>Reuse, don't rebuild</span>Event triggers ride the existing <span class="filechip">dispatch_complete</span> waiters and the events we already capture; the durable queue and memory infra stay. The new surface area is a richer row, a ledger table, and five tools.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ LIFECYCLE ============ -->
+<section id="lifecycle">
+  <div class="wrap">
+    <div class="sec-head"><span class="sec-num">06</span><h2 class="sec">A beat, end to end</h2></div>
+    <p class="sec-sub">// what replaces "the clock fires → the anima loops"</p>
+
+    <div class="flow">
+      <div class="step signal reveal">
+        <div class="ic">📡</div>
+        <div class="cont"><h4>A signal arrives</h4><p>An event fires, a periodic beat is due, or the heartbeat's reasoning gate decides there's something worth doing. Otherwise the responsibility stays dormant — at zero cost.</p><p class="mini">event · cron · heartbeat-gate &nbsp;→&nbsp; enqueue one durable beat job</p></div>
+      </div>
+      <div class="step reveal">
+        <div class="ic">🧭</div>
+        <div class="cont"><h4>Re-ground from durable state</h4><p>The beat opens with the charter, acceptance criteria, compact state, and the last few ledger entries recited at the top — not reconstructed from decaying chat.</p><p class="mini">small, high-signal context &nbsp;·&nbsp; recitation pattern</p></div>
+      </div>
+      <div class="step reveal">
+        <div class="ic">⚒️</div>
+        <div class="cont"><h4>Do one short beat</h4><p>Make incremental progress on the charter. Heavy or parallel investigation is delegated to fresh-context sub-beats that return distilled findings; the decision stays here.</p><p class="mini">minimize both decay variables &nbsp;·&nbsp; serialize writes</p></div>
+      </div>
+      <div class="step reveal">
+        <div class="ic">🔍</div>
+        <div class="cont"><h4>Check progress with fresh eyes</h4><p>A clean-context pass grades the beat against the acceptance criteria and watches for no-progress/loops. Verdict: advancing · stable · blocked · done.</p><p class="mini">not self-narration &nbsp;·&nbsp; verifiable over declared</p></div>
+      </div>
+      <div class="step stable reveal">
+        <div class="ic">📓</div>
+        <div class="cont"><h4>Log &amp; compact</h4><p>Append the beat + verdict to the ledger and update the compact state. The window never grows unbounded; each run leaves the next one better-grounded.</p><p class="mini">append-only ledger &nbsp;·&nbsp; restorable compression</p></div>
+      </div>
+      <div class="step stable reveal">
+        <div class="ic">🧠</div>
+        <div class="cont"><h4>Decide what's next — or ask</h4><p>From the verdict, set the next wake adaptively (back off / lean in / sleep-on-event), or, if blocked or low-confidence or over budget, surface a crisp, specific ask to the owner. Then go dormant.</p><p class="mini">adaptive cadence &nbsp;·&nbsp; honest escalation &nbsp;·&nbsp; budgets &amp; circuit breakers</p></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ RISKS ============ -->
+<section id="risks">
+  <div class="wrap">
+    <div class="sec-head"><span class="sec-num">07</span><h2 class="sec">Tradeoffs &amp; what we're <em>not</em> doing</h2></div>
+    <p class="sec-sub">// being honest about the cost, and drawing the scope line</p>
+
+    <div class="risks">
+      <div class="risk accept reveal"><h4><span class="b">accept</span> More moving parts than a cron row</h4><p>A richer object + a ledger + a verifier pass is more than one timestamp. It's the minimum machinery for reliability over weeks — and it's mostly data, not new services.</p></div>
+      <div class="risk watch reveal"><h4><span class="b">bound</span> The fresh-lens check costs tokens</h4><p>Run it only on beats that mutate state or claim "done" — not on read-only or "nothing changed" beats. Cheap clean-context model, tight prompt.</p></div>
+      <div class="risk watch reveal"><h4><span class="b">watch</span> Adaptive cadence could oscillate</h4><p>Guardrails clamp min/max intervals and require a reason on every change; budgets and circuit breakers cap the blast radius if the heuristic misbehaves.</p></div>
+      <div class="risk accept reveal"><h4><span class="b">accept</span> Aggressive cutover, not a migration</h4><p>Promote <span class="filechip">scheduled_tasks</span> in place and move animas over wholesale, rather than maintaining two scheduling systems in parallel.</p></div>
+      <div class="risk no reveal"><h4><span class="b">not doing</span> A generic workflow engine</h4><p>This is a responsibility object on top of the existing dispatch queue — not Temporal-in-a-box. Reuse the infra we have; flag real strain as future work.</p></div>
+      <div class="risk no reveal"><h4><span class="b">not doing</span> Rate limits or concurrency caps</h4><p>No per-anima dispatch caps, no throttling of multi-anima interaction. Intelligent routing and event-driven dormancy do the load-shaping, not artificial limits.</p></div>
+      <div class="risk no reveal"><h4><span class="b">not doing</span> Timing-gate "fixes"</h4><p>No magic sleeps or min-delays standing in for correctness. Cadence is derived from assessed state, not tuned constants.</p></div>
+      <div class="risk no reveal"><h4><span class="b">not doing</span> Duplicate event sources</h4><p>Event triggers subscribe to the signals we already capture in-process — no second webhook for an event we already see.</p></div>
+    </div>
+
+    <div class="oneline teal" style="margin-top:30px">
+      <div class="zap">🎯</div>
+      <div class="txt"><span>The bet</span>If a responsibility carries its own destination, its own memory, its own sense of progress, and the right to ask — then "just works" stops being a hope and becomes a property you can point at in the ledger.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ REFS ============ -->
+<section id="refs">
+  <div class="wrap">
+    <div class="sec-head"><span class="sec-num">08</span><h2 class="sec">References</h2></div>
+    <p class="sec-sub">// primary sources first; full set behind the research synthesis</p>
+    <div class="refs">
+      <div class="ref"><cite>1</cite> Liu et&nbsp;al. <b>Lost in the Middle: How LMs Use Long Contexts.</b> TACL 2024. <a href="https://arxiv.org/abs/2307.03172">arxiv.org/abs/2307.03172</a></div>
+      <div class="ref"><cite>3</cite> Hong, Troynikov, Huber (Chroma). <b>Context Rot.</b> 2025. <a href="https://www.trychroma.com/research/context-rot">trychroma.com/research/context-rot</a></div>
+      <div class="ref"><cite>4</cite> Modarressi et&nbsp;al. <b>NoLiMa: Long-Context Beyond Literal Matching.</b> ICML 2025. <a href="https://arxiv.org/abs/2502.05167">arxiv.org/abs/2502.05167</a></div>
+      <div class="ref"><cite>5</cite> NVIDIA. <b>RULER: What's the Real Context Size?</b> COLM 2024. <a href="https://arxiv.org/abs/2404.06654">arxiv.org/abs/2404.06654</a></div>
+      <div class="ref"><cite>6</cite> Park et&nbsp;al. <b>Generative Agents.</b> 2023. <a href="https://arxiv.org/abs/2304.03442">arxiv.org/abs/2304.03442</a> · HELMET <a href="https://huggingface.co/blog/helmet">hf/helmet</a></div>
+      <div class="ref"><cite>7</cite> Vectara. <b>AutoGPT planning failures.</b> <a href="https://github.com/vectara/awesome-agent-failures">github.com/vectara/awesome-agent-failures</a></div>
+      <div class="ref"><cite>8</cite> AutoGPT #1994 <b>"Gets stuck in a loop."</b> <a href="https://github.com/Significant-Gravitas/AutoGPT/issues/1994">github issue</a></div>
+      <div class="ref"><cite>10</cite> Manus (Ji). <b>Context Engineering: Lessons from Building Manus.</b> <a href="https://manus.im/blog/Context-Engineering-for-AI-Agents-Lessons-from-Building-Manus">manus.im/blog</a></div>
+      <div class="ref"><cite>11</cite> <b>Play Favorites: Self-Bias in LLM-as-a-Judge.</b> 2025. <a href="https://arxiv.org/pdf/2508.06709">arxiv.org/pdf/2508.06709</a></div>
+      <div class="ref"><cite>13</cite> Anthropic. <b>Effective Context Engineering for AI Agents.</b> <a href="https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents">anthropic.com/engineering</a></div>
+      <div class="ref"><cite>15,17</cite> Breunig. <b>How Long Contexts Fail / Pokémon case study.</b> <a href="https://www.dbreunig.com/2025/06/22/how-contexts-fail-and-how-to-fix-them.html">dbreunig.com</a></div>
+      <div class="ref"><cite>18</cite> Towards AI. <b>When Should an Agent Stop?</b> <a href="https://towardsai.net/p/machine-learning/when-should-an-agent-stop-the-anatomy-of-termination">towardsai.net</a></div>
+      <div class="ref"><cite>18b</cite> Cognition. <b>Devin can now Schedule / Manage Devins.</b> <a href="https://cognition.ai/blog/devin-can-now-schedule-devins">cognition.ai/blog</a></div>
+      <div class="ref"><cite>19</cite> Laban et&nbsp;al. <b>LLMs Get Lost in Multi-Turn Conversation.</b> 2025. <a href="https://arxiv.org/abs/2505.06120">arxiv.org/abs/2505.06120</a></div>
+      <div class="ref"><cite>20,41</cite> Letta / Packer et&nbsp;al. <b>MemGPT &amp; Sleep-time agents.</b> <a href="https://arxiv.org/abs/2310.08560">arxiv.org/abs/2310.08560</a> · <a href="https://docs.letta.com/guides/agents/architectures/sleeptime/">docs.letta.com</a></div>
+      <div class="ref"><cite>21</cite> <b>Canonical Path Deviation (compounding failure).</b> <a href="https://arxiv.org/pdf/2602.19008">arxiv.org/pdf/2602.19008</a></div>
+      <div class="ref"><cite>22</cite> Sinha et&nbsp;al. <b>The Illusion of Diminishing Returns: Long-Horizon Execution.</b> <a href="https://arxiv.org/html/2509.09677v3">arxiv.org/html/2509.09677</a></div>
+      <div class="ref"><cite>23</cite> <b>Event-Driven AI Agent Architecture.</b> <a href="https://fast.io/resources/ai-agent-event-driven-architecture/">fast.io/resources</a></div>
+      <div class="ref"><cite>2,33</cite> Anthropic. <b>How we built our multi-agent research system.</b> <a href="https://www.anthropic.com/engineering/multi-agent-research-system">anthropic.com/engineering</a></div>
+      <div class="ref"><cite>3b,35</cite> Cognition (Yan). <b>Don't Build Multi-Agents / What's Working.</b> <a href="https://cognition.ai/blog/dont-build-multi-agents">cognition.ai/blog</a></div>
+      <div class="ref"><cite>30</cite> Temporal. <b>Durable Execution meets AI.</b> <a href="https://temporal.io/blog/durable-execution-meets-ai-why-temporal-is-the-perfect-foundation-for-ai">temporal.io/blog</a></div>
+      <div class="ref"><cite>13a,22</cite> Cloudflare. <b>Agents — long-running &amp; durable objects.</b> <a href="https://developers.cloudflare.com/agents/concepts/long-running-agents/">developers.cloudflare.com/agents</a></div>
+      <div class="ref"><cite>25,46</cite> Anthropic. <b>Effective Harnesses for Long-Running Agents.</b> <a href="https://www.anthropic.com/engineering/effective-harnesses-for-long-running-agents">anthropic.com/engineering</a></div>
+      <div class="ref"><cite>28</cite> <b>Belief–Desire–Intention (BDI) model.</b> <a href="https://en.wikipedia.org/wiki/Belief%E2%80%93desire%E2%80%93intention_software_model">wikipedia</a></div>
+      <div class="ref"><cite>5b</cite> Wang et&nbsp;al. <b>Voyager: Open-Ended Embodied Agent.</b> <a href="https://arxiv.org/abs/2305.16291">arxiv.org/abs/2305.16291</a></div>
+      <div class="ref"><cite>9</cite> OpenAI. <b>Scheduled Tasks in ChatGPT.</b> <a href="https://help.openai.com/en/articles/10291617-scheduled-tasks-in-chatgpt">help.openai.com</a></div>
+    </div>
+  </div>
+</section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>📍 <b>Bolter internal</b> — Stewardship design proposal · v1 · shared via secret link, please don't circulate outside the team.</span>
+    <span>Synthesis of 40+ sources · grounded in the live <b>bolter</b> codebase.</span>
+  </div>
+</footer>
+
+<button id="toTop" aria-label="Back to top">↑</button>
+
+<script>
+(function(){
+  // progress bar
+  var prog = document.getElementById('progress');
+  var toTop = document.getElementById('toTop');
+  function onScroll(){
+    var h = document.documentElement;
+    var sc = h.scrollTop || document.body.scrollTop;
+    var max = (h.scrollHeight - h.clientHeight) || 1;
+    var pct = Math.min(100, (sc / max) * 100);
+    prog.style.width = pct + '%';
+    toTop.classList.toggle('show', sc > 700);
+  }
+  document.addEventListener('scroll', onScroll, {passive:true}); onScroll();
+  toTop.addEventListener('click', function(){ window.scrollTo({top:0, behavior:'smooth'}); });
+
+  // rail active state
+  var rail = document.querySelectorAll('.rail a');
+  var secs = Array.from(rail).map(function(a){
+    var id = a.getAttribute('data-sec');
+    return {a:a, el: document.getElementById(id)};
+  }).filter(function(s){return s.el;});
+  function activeRail(){
+    var pos = (window.scrollY || 0) + window.innerHeight*0.32;
+    var cur = secs[0];
+    secs.forEach(function(s){ if(s.el.offsetTop <= pos) cur = s; });
+    rail.forEach(function(a){ a.classList.remove('active'); });
+    if(cur) cur.a.classList.add('active');
+  }
+  document.addEventListener('scroll', activeRail, {passive:true}); activeRail();
+
+  // reveal on scroll
+  if('IntersectionObserver' in window && !window.matchMedia('(prefers-reduced-motion: reduce)').matches){
+    var io = new IntersectionObserver(function(es){
+      es.forEach(function(e){ if(e.isIntersecting){ e.target.classList.add('in'); io.unobserve(e.target);} });
+    }, {threshold:0.12});
+    document.querySelectorAll('.reveal').forEach(function(el){ io.observe(el); });
+  } else {
+    document.querySelectorAll('.reveal').forEach(function(el){ el.classList.add('in'); });
+  }
+})();
+</script>
+</body>
+</html>
