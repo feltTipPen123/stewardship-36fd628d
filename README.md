@@ -3,8 +3,8 @@
 A research-grounded redesign of how a Bolter anima manages a standing responsibility —
 presented as a single, self-contained, ADHD-friendly web page.
 
-**Live (secret) URL:** _set after deploy — see below_
-**Source:** this repo.
+**Live (secret) URL:** https://felttippen123.github.io/stewardship-36fd628d/
+**Source:** https://github.com/feltTipPen123/stewardship-36fd628d (public, unguessable slug — share the link, don't circulate)
 
 ## TL;DR
 Today an anima owns a responsibility by self-scheduling a timer and re-running a loop.
