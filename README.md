@@ -17,7 +17,8 @@ it just works, and knows when to ask.
 See [`PLAN.md`](./PLAN.md) for the full plan and the six-pillar summary.
 
 ## Files
-- `index.html` — the deliverable. Self-contained (CDN fonts only); open it directly or serve statically.
+- `index.html` — the proposal. Self-contained (CDN fonts only); open it directly or serve statically.
+- `atlas.html` — **Codebase Atlas**: an 11-stop guided tour of the load-bearing areas, domain model, and key routines underpinning the change surface, with verbatim code inline. Live: `…/stewardship-36fd628d/atlas.html`. Cross-linked from the proposal.
 - `PLAN.md` — the plan, the proposal in one screen, and the Bolter code mapping.
 - `README.md` — this file.
 
