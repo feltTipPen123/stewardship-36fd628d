@@ -1,0 +1,838 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="robots" content="noindex, nofollow" />
+<title>Codebase Atlas — the responsibility surface in bolter</title>
+<meta name="description" content="A guided tour of every load-bearing area, the domain model, and the key routines underpinning anima responsibility scheduling." />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400..900;1,9..144,400..700&family=Hanken+Grotesk:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/base16/material-darker.min.css">
+<style>
+  :root{
+    --paper:#F6F1E6; --paper-2:#FCF9F1; --card:#FFFDF7;
+    --ink:#211C16; --ink-soft:#4A4138; --ink-faint:#8A7E6E;
+    --line:#E3D8C3; --line-strong:#CDBFA3;
+    --signal:#D9482B; --signal-deep:#A8341D;
+    --stable:#1E7A66; --stable-deep:#155a4b;
+    --gold:#C18A1B; --violet:#5A4A8A;
+    --code-bg:#211c16; --code-head:#2c261d;
+    --shadow:0 1px 0 rgba(33,28,22,.04),0 10px 30px -18px rgba(33,28,22,.45);
+    --shadow-lg:0 2px 0 rgba(33,28,22,.05),0 30px 60px -28px rgba(33,28,22,.5);
+    --maxw:1240px; --read:820px;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth; scroll-padding-top:84px}
+  @media (prefers-reduced-motion: reduce){ html{scroll-behavior:auto} *{animation:none!important; transition:none!important} }
+  body{margin:0; background:var(--paper); color:var(--ink);
+    font-family:"Hanken Grotesk",system-ui,sans-serif; font-size:18px; line-height:1.62;
+    -webkit-font-smoothing:antialiased;
+    background-image:radial-gradient(circle at 10% -5%,rgba(217,72,43,.05),transparent 38%),radial-gradient(circle at 95% 3%,rgba(30,122,102,.05),transparent 34%);
+    background-attachment:fixed;}
+  body::before{content:""; position:fixed; inset:0; z-index:0; pointer-events:none; opacity:.32;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.5'/%3E%3C/svg%3E"); mix-blend-mode:multiply;}
+  .wrap{position:relative; z-index:1; max-width:var(--maxw); margin:0 auto; padding:0 28px}
+
+  #progress{position:fixed; top:0; left:0; height:4px; width:0%; z-index:60; background:linear-gradient(90deg,var(--signal),var(--gold),var(--stable)); transition:width .12s linear}
+  .topbar{position:fixed; top:0; left:0; right:0; z-index:50; height:62px; display:flex; align-items:center; backdrop-filter:saturate(1.3) blur(8px); background:rgba(246,241,230,.84); border-bottom:1px solid var(--line)}
+  .topbar .wrap{display:flex; align-items:center; gap:18px; width:100%}
+  .brand{font-family:"Fraunces",serif; font-weight:900; font-size:19px; letter-spacing:-.01em; display:flex; align-items:center; gap:9px}
+  .brand .dot{width:11px; height:11px; border-radius:3px; background:var(--stable); box-shadow:0 0 0 4px rgba(30,122,102,.16)}
+  .brand small{font-family:"JetBrains Mono",monospace; font-weight:500; font-size:11px; color:var(--ink-faint); letter-spacing:.04em; text-transform:uppercase}
+  .topnav{margin-left:auto; display:flex; gap:6px; align-items:center}
+  .topnav a{font-size:13px; font-weight:600; color:var(--ink-soft); text-decoration:none; padding:7px 11px; border-radius:8px}
+  .topnav a:hover{background:var(--paper-2); color:var(--ink)}
+  .topnav a.back{border:1px solid var(--line-strong)}
+  @media(max-width:980px){ .topnav a:not(.back){display:none} }
+
+  /* station rail */
+  .rail{position:fixed; left:max(16px,calc((100vw - var(--maxw))/2 - 4px)); top:84px; width:230px; z-index:30; max-height:calc(100vh - 110px); overflow:auto; padding:8px 0}
+  .rail .rl{font-family:"JetBrains Mono",monospace; font-size:10.5px; letter-spacing:.12em; text-transform:uppercase; color:var(--ink-faint); padding:6px 10px}
+  .rail a{display:flex; gap:10px; align-items:baseline; text-decoration:none; color:var(--ink-soft); font-size:13.5px; font-weight:600; padding:6px 10px; border-radius:8px; border-left:2px solid transparent; line-height:1.25}
+  .rail a .n{font-family:"JetBrains Mono",monospace; font-size:11px; color:var(--ink-faint); flex:0 0 auto}
+  .rail a:hover{background:var(--paper-2)}
+  .rail a.active{color:var(--ink); background:var(--paper-2); border-left-color:var(--signal)}
+  .rail a.active .n{color:var(--signal)}
+  .layout{display:grid; grid-template-columns:262px minmax(0,1fr); gap:0}
+  .layout > main{min-width:0}
+  @media(max-width:1180px){ .rail{display:none} .layout{grid-template-columns:minmax(0,1fr)} }
+
+  header.hero{padding:122px 0 26px}
+  .kicker{font-family:"JetBrains Mono",monospace; font-size:12.5px; letter-spacing:.16em; text-transform:uppercase; color:var(--stable-deep); font-weight:700; display:flex; align-items:center; gap:12px}
+  .kicker::before{content:""; width:34px; height:2px; background:var(--stable)}
+  h1.title{font-family:"Fraunces",serif; font-weight:900; font-size:clamp(38px,6vw,66px); line-height:1.0; letter-spacing:-.026em; margin:.3em 0 .2em; max-width:18ch}
+  h1.title em{font-style:italic; color:var(--stable)}
+  .dek{font-size:clamp(18px,2.1vw,21px); color:var(--ink-soft); max-width:62ch; line-height:1.5; font-weight:500}
+  .hero-meta{display:flex; flex-wrap:wrap; gap:10px; margin-top:22px}
+  .chip{font-family:"JetBrains Mono",monospace; font-size:11.5px; font-weight:500; padding:6px 11px; border:1px solid var(--line-strong); border-radius:100px; color:var(--ink-soft); background:var(--paper-2)}
+  .chip b{color:var(--ink)}
+
+  .legend{display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:10px; margin:28px 0 6px; max-width:var(--read)}
+  .legend .li{display:flex; gap:10px; align-items:flex-start; font-size:13.5px; color:var(--ink-soft); background:var(--card); border:1px solid var(--line); border-radius:10px; padding:11px 13px}
+  .legend .li .k{flex:0 0 auto; width:26px; height:26px; border-radius:7px; display:grid; place-items:center; font-size:14px}
+  .legend .li .k.w{background:#fbe5df; color:var(--signal-deep)} .legend .li .k.t{background:#e3f1ec; color:var(--stable-deep)} .legend .li .k.c{background:var(--code-bg); color:#e8a87c}
+
+  section{padding:52px 0; border-top:1px solid var(--line)}
+  .sec-head{display:flex; align-items:baseline; gap:14px}
+  .sec-num{font-family:"JetBrains Mono",monospace; font-size:13px; font-weight:700; color:var(--stable); letter-spacing:.04em}
+  h2.sec{font-family:"Fraunces",serif; font-weight:800; font-size:clamp(27px,3.7vw,40px); line-height:1.04; letter-spacing:-.02em; margin:0}
+  .sec-sub{color:var(--ink-faint); font-size:13.5px; font-family:"JetBrains Mono",monospace; margin:6px 0 0}
+  p{max-width:var(--read)} .lede{font-size:19px; color:var(--ink-soft); max-width:var(--read); margin:16px 0 0}
+  h3.sub{font-family:"Fraunces",serif; font-weight:700; font-size:22px; margin:34px 0 2px; letter-spacing:-.01em}
+
+  .filechip{font-family:"JetBrains Mono",monospace; font-size:12.5px; background:var(--paper-2); border:1px solid var(--line-strong); padding:2px 7px; border-radius:6px; color:var(--signal-deep); white-space:nowrap}
+  code.inl{font-family:"JetBrains Mono",monospace; font-size:.86em; background:var(--paper-2); border:1px solid var(--line); padding:1px 5px; border-radius:5px; color:var(--ink)}
+
+  /* callouts */
+  .call{display:flex; gap:13px; align-items:flex-start; border-radius:13px; padding:15px 18px; margin:20px 0; max-width:var(--read); box-shadow:var(--shadow); border:1px solid var(--line)}
+  .call .ic{flex:0 0 auto; width:32px; height:32px; border-radius:9px; display:grid; place-items:center; font-size:16px; color:#fff}
+  .call .tx{font-size:15.5px; line-height:1.45; color:var(--ink-soft)}
+  .call .tx b{color:var(--ink)} .call .tx .h{display:block; font-size:11px; font-weight:700; letter-spacing:.12em; text-transform:uppercase; margin-bottom:3px}
+  .call.why{background:linear-gradient(180deg,#fcf9f1,#fffdf7)} .call.why .ic{background:var(--stable)} .call.why .h{color:var(--stable-deep)}
+  .call.warn{background:linear-gradient(180deg,#fdf6ee,#fffdf7); border-color:#ecd9b3} .call.warn .ic{background:var(--gold)} .call.warn .h{color:var(--gold)}
+  .call.touch{background:linear-gradient(180deg,#fbeee9,#fff8f4); border-color:#f0cdc0} .call.touch .ic{background:var(--signal)} .call.touch .h{color:var(--signal-deep)}
+
+  /* code cards */
+  .code{margin:20px 0; border-radius:14px; overflow:hidden; box-shadow:var(--shadow-lg); border:1px solid #16120d; max-width:920px}
+  .code .chead{display:flex; align-items:center; gap:10px; background:var(--code-head); padding:9px 14px; border-bottom:1px solid #16120d; flex-wrap:wrap}
+  .code .chead .fp{font-family:"JetBrains Mono",monospace; font-size:12px; color:#e8d9bf}
+  .code .chead .ln{font-family:"JetBrains Mono",monospace; font-size:11px; color:#9d8f76; margin-left:auto}
+  .code .chead .lang{font-family:"JetBrains Mono",monospace; font-size:10px; text-transform:uppercase; letter-spacing:.08em; color:#211c16; background:#c9a86a; padding:2px 7px; border-radius:5px}
+  .code .cap{background:#1a1610; color:#b9ac95; font-size:13px; padding:8px 14px; border-bottom:1px solid #16120d; font-style:italic}
+  .code pre{margin:0; overflow-x:auto; background:var(--code-bg)!important}
+  .code pre code.hljs{background:var(--code-bg)!important; padding:16px 18px; font-family:"JetBrains Mono",monospace; font-size:13px; line-height:1.62; display:block}
+  /* warm syntax palette overrides */
+  .hljs{color:#e7dcc6}
+  .hljs-comment,.hljs-quote{color:#8f8163; font-style:italic}
+  .hljs-keyword,.hljs-built_in,.hljs-literal{color:#e8a87c}
+  .hljs-string,.hljs-template-string,.hljs-regexp,.hljs-meta-string{color:#8fcbb0}
+  .hljs-title,.hljs-title.function_,.hljs-section{color:#dcb45f}
+  .hljs-number,.hljs-symbol{color:#b79ce0}
+  .hljs-attr,.hljs-property,.hljs-variable,.hljs-template-variable{color:#e7dcc6}
+  .hljs-type,.hljs-class .hljs-title,.hljs-title.class_{color:#7fd1b9}
+  .hljs-params{color:#e7dcc6}
+  .hljs-attribute{color:#e8a87c}
+
+  details.dd{border:1px solid var(--line); border-radius:11px; margin:14px 0; background:var(--paper-2); max-width:920px; overflow:hidden}
+  details.dd>summary{cursor:pointer; list-style:none; padding:12px 16px; font-weight:700; font-size:14px; color:var(--ink); display:flex; align-items:center; gap:9px}
+  details.dd>summary::-webkit-details-marker{display:none}
+  details.dd>summary .tw{transition:.2s; color:var(--signal); font-family:"JetBrains Mono",monospace}
+  details.dd[open]>summary .tw{transform:rotate(90deg)}
+  details.dd .ddbody{padding:0 6px 8px}
+
+  /* change-surface table */
+  .tblwrap{margin:20px 0; max-width:980px; overflow-x:auto; -webkit-overflow-scrolling:touch; border-radius:12px}
+  .tbl{width:100%; min-width:620px; border-collapse:collapse; font-size:14.5px; background:var(--card); border:1px solid var(--line); border-radius:12px; overflow:hidden}
+  .tbl th,.tbl td{text-align:left; padding:11px 14px; border-bottom:1px solid var(--line); vertical-align:top}
+  .tbl th{font-family:"JetBrains Mono",monospace; font-size:11px; text-transform:uppercase; letter-spacing:.06em; color:var(--ink-faint); background:var(--paper-2)}
+  .tbl td b{color:var(--ink)} .tbl tr:last-child td{border-bottom:none}
+  .tbl .p{font-family:"Fraunces",serif; font-weight:800; color:var(--stable)}
+  .tag{display:inline-block; font-family:"JetBrains Mono",monospace; font-size:10.5px; padding:2px 7px; border-radius:5px; margin:1px 2px 1px 0}
+  .tag.reuse{background:#e3f1ec; color:var(--stable-deep)} .tag.new{background:#fbe5df; color:var(--signal-deep)} .tag.care{background:#faf0d8; color:var(--gold)}
+
+  .read5{counter-reset:r; margin:18px 0; max-width:var(--read)}
+  .read5 .r{display:grid; grid-template-columns:42px 1fr; gap:14px; padding:13px 0; border-bottom:1px dashed var(--line-strong)}
+  .read5 .r .num{font-family:"Fraunces",serif; font-weight:900; font-size:26px; color:var(--signal); line-height:1}
+  .read5 .r h4{margin:0 0 3px; font-size:15px} .read5 .r h4 .filechip{font-size:11.5px}
+  .read5 .r p{margin:0; font-size:14px; color:var(--ink-soft)}
+
+  .checklist{background:var(--card); border:1px solid var(--line); border-left:5px solid var(--stable); border-radius:14px; padding:20px 24px; margin:22px 0; max-width:var(--read); box-shadow:var(--shadow)}
+  .checklist h4{margin:0 0 10px; font-family:"JetBrains Mono",monospace; font-size:12px; letter-spacing:.1em; text-transform:uppercase; color:var(--stable-deep)}
+  .checklist ul{margin:0; padding:0; list-style:none}
+  .checklist li{padding:6px 0 6px 28px; position:relative; font-size:15px; color:var(--ink-soft)}
+  .checklist li::before{content:"☐"; position:absolute; left:0; top:4px; color:var(--stable); font-size:16px}
+  .checklist li b{color:var(--ink)}
+
+  mark{background:linear-gradient(180deg,transparent 55%,rgba(217,72,43,.26) 55%); padding:0 1px}
+  strong{font-weight:700; color:var(--ink)}
+  a.inl{color:var(--signal-deep); text-underline-offset:2px}
+  footer{padding:54px 0 90px; border-top:1px solid var(--line); color:var(--ink-faint); font-size:14px}
+  footer .wrap{display:flex; justify-content:space-between; gap:20px; flex-wrap:wrap}
+  footer b{color:var(--ink)}
+  #toTop{position:fixed; right:20px; bottom:20px; z-index:45; width:44px; height:44px; border-radius:50%; background:var(--ink); color:var(--paper-2); border:none; cursor:pointer; font-size:17px; box-shadow:var(--shadow-lg); opacity:0; pointer-events:none; transition:.25s}
+  #toTop.show{opacity:1; pointer-events:auto} #toTop:hover{background:var(--stable)}
+  .reveal{opacity:0; transform:translateY(16px); transition:opacity .55s ease, transform .55s ease}
+  .reveal.in{opacity:1; transform:none}
+</style>
+</head>
+<body>
+<div id="progress"></div>
+<div class="topbar"><div class="wrap">
+  <span class="brand"><span class="dot"></span> Codebase Atlas <small>· the responsibility surface</small></span>
+  <nav class="topnav">
+    <a href="#s1">Domain</a><a href="#s2">Queue</a><a href="#s3">Scheduler</a><a href="#s4">Events</a>
+    <a href="#s5">Handler</a><a href="#s6">Turn loop</a><a href="#s7">Context</a><a href="#s8">Tools</a>
+    <a href="#s9">Change map</a>
+    <a class="back" href="index.html">← Proposal</a>
+  </nav>
+</div></div>
+
+<nav class="rail" id="rail" aria-label="stations">
+  <div class="rl">The tour · 11 stops</div>
+  <a href="#top"><span class="n">00</span><span>Orientation</span></a>
+  <a href="#s1"><span class="n">01</span><span>Domain model</span></a>
+  <a href="#s2"><span class="n">02</span><span>The durable queue</span></a>
+  <a href="#s3"><span class="n">03</span><span>The scheduler (clock)</span></a>
+  <a href="#s4"><span class="n">04</span><span>Event triggers</span></a>
+  <a href="#s5"><span class="n">05</span><span>Scheduled-job handler</span></a>
+  <a href="#s6"><span class="n">06</span><span>The turn loop</span></a>
+  <a href="#s7"><span class="n">07</span><span>Context assembly</span></a>
+  <a href="#s8"><span class="n">08</span><span>Tools &amp; registration</span></a>
+  <a href="#s9"><span class="n">09</span><span>Change-surface map</span></a>
+  <a href="#s10"><span class="n">10</span><span>Read-first &amp; checklist</span></a>
+</nav>
+
+<div class="layout">
+<div></div>
+<main>
+
+<a id="top"></a>
+<header class="hero"><div class="wrap">
+  <div class="kicker">Bolter internal · companion to the Stewardship proposal</div>
+  <h1 class="title">The code you must hold in your head <em>before touching this.</em></h1>
+  <p class="dek">A guided tour through the load-bearing systems behind anima responsibility scheduling: the domain model, the durable queue, the scheduler, the turn loop, context assembly, and tools. Real code inline, with the invariants you can't break and the exact places the redesign lands.</p>
+  <div class="hero-meta">
+    <span class="chip">🧭 <b>11</b> stops</span>
+    <span class="chip">⏱ <b>6 min</b> skim · <b>18 min</b> full</span>
+    <span class="chip">📄 code from the live <b>bolter</b> tree</span>
+    <span class="chip">🔗 pairs with the <b>proposal</b></span>
+  </div>
+
+  <div class="legend">
+    <div class="li"><span class="k t">▣</span><div><b>What this is</b> — plain-language read of the system.</div></div>
+    <div class="li"><span class="k c">⌗</span><div><b>Inline code</b> — verbatim from the repo, file + lines labelled.</div></div>
+    <div class="li"><span class="k w">⚠</span><div><b>Invariants</b> — must stay true; breaking them is a bug.</div></div>
+  </div>
+  <div class="call touch" style="margin-top:18px"><div class="ic">△</div><div class="tx"><span class="h">Reading mode</span>Each stop ends with <b>△ Where the proposal lands</b> — the concrete hook for the six Stewardship pillars. If you only want the map of what changes, skim those and Stop 09.</div></div>
+</div></header>
+
+<!-- 00 ORIENTATION -->
+<section id="s0"><div class="wrap">
+  <div class="sec-head"><span class="sec-num">00</span><h2 class="sec">Orientation: how a responsibility actually fires</h2></div>
+  <p class="sec-sub">// two tiers, one durable queue, one turn loop</p>
+  <p class="lede">Everything in this tour sits on one spine. A trigger (clock, event, or human) puts a row on a durable Postgres queue; a worker claims exactly one; that becomes a single anima <em>turn</em>; the turn re-derives its world from context and posts. Hold this picture and every stop slots into it.</p>
+
+  <div class="code reveal" data-file="the spine — end to end" data-lines="conceptual" data-lang="text">
+<script type="text/plain">  TRIGGER                         DURABLE QUEUE                 WORKER                         TURN
+  ───────                         ─────────────                 ──────                         ────
+  scheduler tick (cron/runAt) ┐
+  dispatch_complete waiter    ┤   enqueueDispatchJob()          worker-loop:                   runAnimaTurn()
+  nudge / webhook / email     ┼─▶ INSERT dispatch_jobs      ─▶  SELECT … FOR UPDATE SKIP   ─▶  buildAnimaContext()
+  user message (ws-edge)      ┤   ON CONFLICT DO NOTHING         LOCKED  (claim exactly 1)      → system prompt
+  commitment follow-up        ┘   pg_notify('dispatch_jobs')     per-kind trigger validator     → agent loop (≤200 turns)
+                                                                 run<Kind>Job(payload)          → post reply
+                                  ▲ idempotency_key UNIQUE                                       → fireDispatchCompleteTriggers()
+                                    = at-least-once, deduped                                       (wakes peers that awaited it)
+
+  ws-edge tier  ──────────────────────────┼──────────────────────────  dispatch-worker tier
+  (transport: INSERTs jobs)                │                            (the dispatch loop: claims + runs)
+                                    one Postgres DB, LISTEN/NOTIFY</script>
+  </div>
+
+  <div class="call why"><div class="ic">▣</div><div class="tx"><span class="h">The one sentence</span>A responsibility today is a <span class="filechip">scheduled_tasks</span> row that a clock turns into a <span class="filechip">dispatch_jobs</span> row that a worker turns into one <span class="filechip">runAnimaTurn</span>. There is no object that survives <em>across</em> fires except the chat itself.</div></div>
+</div></section>
+
+<!-- 01 DOMAIN MODEL -->
+<section id="s1"><div class="wrap">
+  <div class="sec-head"><span class="sec-num">01</span><h2 class="sec">The domain model</h2></div>
+  <p class="sec-sub">// packages/bolter-db/src/schema.ts — the source of truth (a shared-pain file: announce before editing)</p>
+  <p class="lede">Four tables matter here, and the most important fact is how little the duty row carries. Learn these shapes cold — the redesign is mostly a change to the first one.</p>
+
+  <h3 class="sub">① <span class="filechip">scheduled_tasks</span> — the duty ledger</h3>
+  <div class="code reveal" data-file="packages/bolter-db/src/schema.ts" data-lines="460–478" data-lang="typescript" data-cap="A duty is a cron string or a runAt, a description, and a trigger type. Note what is NOT here: success criteria, durable state, a 'done'. nextRunAt exists but is never written.">
+<script type="text/plain">export const scheduledTasks = pgTable('scheduled_tasks', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  animaId: uuid('anima_id').notNull().references(() => animaInstances.id),
+  groupId: uuid('group_id').references(() => groups.id),
+  cronExpression: text('cron_expression'),          // recurring
+  runAt: timestamp('run_at', { withTimezone: true }), // one-time
+  description: text('description').notNull(),        // the WHOLE charter, today
+  payload: jsonb('payload').$type<Record<string, unknown>>().notNull().default({}),
+  enabled: boolean('enabled').notNull().default(true),
+  lastRunAt: timestamp('last_run_at', { withTimezone: true }),
+  nextRunAt: timestamp('next_run_at', { withTimezone: true }), // ← in schema, NEVER populated
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  // 'time' (default) fires on runAt/cron via the scheduler tick.
+  // 'dispatch_complete' waits for a peer dispatch to finish.
+  triggerType: text('trigger_type', { enum: ['time', 'dispatch_complete', 'nudge'] }).notNull().default('time'),
+  triggerDispatchGroup: text('trigger_dispatch_group'),
+  triggerAnimaId: uuid('trigger_anima_id'),
+});</script>
+  </div>
+
+  <h3 class="sub">② <span class="filechip">dispatch_jobs</span> — the durable work queue</h3>
+  <div class="code reveal" data-file="packages/bolter-db/src/schema.ts" data-lines="1134–1178" data-lang="typescript" data-cap="One row per trigger. The idempotency model is the whole reliability story — read the comment, it is load-bearing.">
+<script type="text/plain">// Idempotency model (single mechanism, every trigger):
+//   - Enqueue: INSERT … ON CONFLICT (idempotency_key) DO NOTHING.
+//   - Worker claim: allocate dispatch_id, write claimed_dispatch_id, run.
+//   - Lease re-pickup (worker SIGKILL'd mid-run): a generic "did anything write?" probe —
+//     SELECT EXISTS (SELECT 1 FROM messages WHERE dispatch_id = claimed_dispatch_id).
+//     If yes → outcome='aborted_at_shutdown', do NOT re-run. If no → fresh dispatch_id, proceed.
+export const dispatchJobs = pgTable('dispatch_jobs', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  idempotencyKey: text('idempotency_key').notNull().unique(),   // ← the dedup spine
+  triggerKind: text('trigger_kind').notNull(),
+  payload: jsonb('payload').notNull(),
+  enqueuedAt: timestamp('enqueued_at', { withTimezone: true }).notNull().defaultNow(),
+  claimedAt: timestamp('claimed_at', { withTimezone: true }),
+  claimedDispatchId: text('claimed_dispatch_id'),  // text: joins messages.dispatch_id w/o a cast
+  completedAt: timestamp('completed_at', { withTimezone: true }),
+  outcome: text('outcome', { enum: ['success', 'aborted_at_shutdown', 'trigger_stale', 'failed'] }),
+  attempts: integer('attempts').notNull().default(0),
+}, (table) => [
+  index('idx_dispatch_jobs_pull').on(table.enqueuedAt).where(sql`${table.claimedAt} IS NULL`),
+  index('idx_dispatch_jobs_lease').on(table.claimedAt)
+    .where(sql`${table.claimedAt} IS NOT NULL AND ${table.completedAt} IS NULL`),
+]);</script>
+  </div>
+
+  <details class="dd"><summary><span class="tw">▸</span> ③ &amp; ④ — anima_tasks (work tracker) and the vestigial tasks table</summary><div class="ddbody">
+  <div class="code" data-file="packages/bolter-db/src/schema.ts" data-lines="762–805" data-lang="typescript" data-cap="anima_tasks tracks user-facing multi-dispatch WORK and has a real status enum. The older `tasks` table still exists but its progress fields are dead — the tools that drove them were removed. Progress lives on work, never on the duty.">
+<script type="text/plain">// ④ Vestigial: `tasks` — the per-dispatch tracker. progress / remaining /
+//    checkpointCount / lastCheckpointAt are no longer written. The
+//    bolter_begin_long_task / bolter_checkpoint tools that drove them were removed.
+
+// ③ The user-facing multi-dispatch WORK tracker (this one IS alive):
+export const animaTasks = pgTable('anima_tasks', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  animaId: uuid('anima_id').notNull().references(() => animaInstances.id, { onDelete: 'cascade' }),
+  title: text('title').notNull(),
+  context: text('context'),                  // free-form progress notes the anima maintains
+  status: text('status', { enum: ['pending', 'active', 'inactive', 'done', 'error'] })
+    .notNull().default('pending'),
+  originatingGroupId: uuid('originating_group_id').notNull().references(() => groups.id),
+  lockedByDispatch: text('locked_by_dispatch'), // soft-lock while a dispatch works it
+  lockedAt: timestamp('locked_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});</script>
+  </div>
+  </div></details>
+
+  <div class="call warn"><div class="ic">⚠</div><div class="tx"><span class="h">Invariants</span>Schema changes are <b>expand/contract</b>: additive migrations in <span class="filechip">drizzle/</span>, destructive in <span class="filechip">drizzle-contract/</span>, both registered in their <code class="inl">_journal.json</code>. <b>Never <code class="inl">drizzle-kit push</code>.</b> <span class="filechip">schema.ts</span> is a shared-pain file — announce before editing. <code class="inl">idempotency_key</code> must stay globally unique per logical fire.</div></div>
+  <div class="call touch"><div class="ic">△</div><div class="tx"><span class="h">Where the proposal lands</span><b>P1/P2.</b> The duty row grows a <code class="inl">charter</code>, <code class="inl">acceptance</code>, compact <code class="inl">state</code>, real <code class="inl">status</code>, adaptive <code class="inl">nextWakeAt</code> (finally written), <code class="inl">triggers</code>, <code class="inl">budget</code>; a new append-only <code class="inl">responsibility_beats</code> ledger retires the dead checkpoint fields. Additive first — contract the old columns later.</div></div>
+</div></section>
+
+<!-- 02 QUEUE -->
+<section id="s2"><div class="wrap">
+  <div class="sec-head"><span class="sec-num">02</span><h2 class="sec">The durable queue</h2></div>
+  <p class="sec-sub">// packages/chat-core/src/dispatch-jobs/enqueue.ts + apps/dispatch-worker/src/dispatch-jobs/worker-loop.ts</p>
+  <p class="lede">This is the spine any new wake-path must ride. Do not call <span class="filechip">runAnimaTurn</span> directly from a trigger — enqueue a job, or you lose durability. Two routines: enqueue (with dedup) and claim (with exactly-one semantics).</p>
+
+  <div class="code reveal" data-file="packages/chat-core/src/dispatch-jobs/enqueue.ts" data-lines="4–101" data-lang="typescript" data-cap="The only durable entry point. trigger_kind selects the worker's validator; the UNIQUE idempotency key gives at-least-once delivery with dedup. A new wake type adds to TriggerKind here.">
+<script type="text/plain">export type TriggerKind =
+  | 'user_msg' | 'outbox' | 'scheduled' | 'commitment' | 'nudge'
+  | 'webhook' | 'email' | 'system_event'
+  | 'sandbox_visibility_request_decision' | 'credential_grant_resolved';
+
+// A second enqueue with the same key returns { jobId: null, deduped: true } —
+// ON CONFLICT DO NOTHING — and does NOT re-fire NOTIFY (the first one already woke a worker).
+export async function enqueueDispatchJob(input: EnqueueDispatchJobInput): Promise<EnqueueDispatchJobOutput> {
+  const db = getDb();
+  const payloadWithTrace = input.traceContext
+    ? { ...input.payload, __trace_context: input.traceContext }
+    : input.payload;
+
+  const inserted = await db
+    .insert(schema.dispatchJobs)
+    .values({ idempotencyKey: input.idempotencyKey, triggerKind: input.triggerKind, payload: payloadWithTrace })
+    .onConflictDoNothing({ target: schema.dispatchJobs.idempotencyKey })
+    .returning({ id: schema.dispatchJobs.id });
+
+  if (inserted.length === 0) return { jobId: null, deduped: true };
+  const jobId = inserted[0].id;
+  await db.execute(sql`SELECT pg_notify(${NOTIFY_CHANNEL}, ${jobId})`); // NOTIFY_CHANNEL = 'dispatch_jobs'
+  return { jobId, deduped: false };
+}</script>
+  </div>
+
+  <div class="code reveal" data-file="apps/dispatch-worker/src/dispatch-jobs/worker-loop.ts" data-lines="204–253" data-lang="typescript" data-cap="FOR UPDATE SKIP LOCKED = exactly one of N replicas claims a row. The idempotency verdict then decides run-fresh vs skip-already-ran (crash recovery). This is how 'scheduled' jobs become turns.">
+<script type="text/plain">async function claimAndDecide() {
+  if (shuttingDown) return null;
+  return await db.transaction(async (tx) => {
+    const claimRes = await tx.execute(sql`
+      WITH j AS (
+        SELECT id, idempotency_key, trigger_kind, payload, claimed_dispatch_id
+        FROM dispatch_jobs
+        WHERE claimed_at IS NULL AND completed_at IS NULL
+        ORDER BY enqueued_at ASC
+        LIMIT 1
+        FOR UPDATE SKIP LOCKED        -- ← at-most-one worker takes this row
+      )
+      SELECT id, idempotency_key, trigger_kind, payload, claimed_dispatch_id FROM j
+    `);
+    const rows = (claimRes.rows ?? []);
+    if (rows.length === 0) return null;
+    const row = rows[0];
+
+    const verdict = await checkIdempotency(row.id, row.claimed_dispatch_id);
+    if (verdict.action === 'skip-already-ran') {           // prior attempt already wrote messages
+      await tx.execute(sql`UPDATE dispatch_jobs
+        SET completed_at = now(), outcome = 'aborted_at_shutdown' WHERE id = ${row.id}`);
+      return { kind: 'aborted' as const };
+    }
+    const dispatchId = verdict.dispatchId;                 // fresh id; never reuses the prior one
+    await tx.execute(sql`UPDATE dispatch_jobs
+      SET claimed_at = now(), claimed_dispatch_id = ${dispatchId}, attempts = attempts + 1
+      WHERE id = ${row.id}`);
+    return { kind: 'run' as const, job: row, dispatchId };
+  });
+}</script>
+  </div>
+
+  <div class="call warn"><div class="ic">⚠</div><div class="tx"><span class="h">Invariants</span>Every wake <b>must</b> enqueue (durability + crash recovery). Idempotency keys must be unique per logical fire — cron uses a time-stamped key so each tick is distinct; one-shots use a stable key so retries dedup. A new <code class="inl">trigger_kind</code> needs a matching validator (<span class="filechip">trigger-validators.ts</span>) or the worker can't route it. <span class="filechip">chat-core</span> is a shared-pain, cross-tier package.</div></div>
+  <div class="call touch"><div class="ic">△</div><div class="tx"><span class="h">Where the proposal lands</span><b>P3/P6.</b> New event wakes enqueue here with an existing or new <code class="inl">trigger_kind</code>; adaptive next-wake re-enqueues a <code class="inl">scheduled</code> job at <code class="inl">nextWakeAt</code>. The durable queue is <em>reused as-is</em> — this is the "don't build a workflow engine" guarantee.</div></div>
+</div></section>
+
+<!-- 03 SCHEDULER -->
+<section id="s3"><div class="wrap">
+  <div class="sec-head"><span class="sec-num">03</span><h2 class="sec">The scheduler — where the clock lives</h2></div>
+  <p class="sec-sub">// apps/dispatch-worker/src/services/scheduler.ts (note: a second scheduler.ts exists in ws-edge)</p>
+  <p class="lede">In-process <code class="inl">node-cron</code> jobs + <code class="inl">setTimeout</code> timers, hydrated from the DB at boot. A Redis leader-lock makes sure only one replica fires a given tick. This is the entire "self-scheduling" surface the proposal reframes.</p>
+
+  <div class="code reveal" data-file="apps/dispatch-worker/src/services/scheduler.ts" data-lines="8–98" data-lang="typescript" data-cap="initScheduler loads only 'time' + 'nudge' rows — 'dispatch_complete' is event-driven elsewhere. scheduleTask registers a timer (one-time) or a cron job (recurring), gated by a leader lock so N replicas fire once.">
+<script type="text/plain">const scheduledJobs = new Map<string, cron.ScheduledTask>();
+const oneTimeTimers = new Map<string, ReturnType<typeof setTimeout>>();
+
+export async function initScheduler() {
+  // 'dispatch_complete' rows are event-triggered (scheduler-event-triggers.ts)
+  // and must NOT be picked up here or we double-fire.
+  const tasks = await db.select().from(schema.scheduledTasks)
+    .where(and(eq(schema.scheduledTasks.enabled, true),
+               inArray(schema.scheduledTasks.triggerType, ['time', 'nudge'])));
+  for (const task of tasks) scheduleTask(task);
+}
+
+export function scheduleTask(task: typeof schema.scheduledTasks.$inferSelect) {
+  if (task.runAt && !task.cronExpression) {                    // one-time
+    const delay = new Date(task.runAt).getTime() - Date.now();
+    if (delay <= 0) { fireTask(task, true); }                  // past due → fire now
+    else { oneTimeTimers.set(task.id, setTimeout(() => fireTask(task, true), delay)); }
+    return;
+  }
+  if (!task.cronExpression) return;
+  if (!cron.validate(task.cronExpression)) return;
+  const job = cron.schedule(task.cronExpression, async () => {
+    await withLeaderLock(`cron:${task.id}`, 30, () => fireTask(task, false)); // one replica wins
+  });
+  scheduledJobs.set(task.id, job);
+}</script>
+  </div>
+
+  <div class="code reveal" data-file="apps/dispatch-worker/src/services/scheduler.ts" data-lines="100–119 (+ enqueue tail)" data-lang="typescript" data-cap="fireTask is the bridge from clock → queue. One-time tasks atomically flip enabled:false (double-fire guard); cron tasks stamp lastRunAt. Then it enqueues a 'scheduled' job (idempotency-keyed) — it never invokes the anima directly.">
+<script type="text/plain">async function fireTask(task, isOneTime) {
+  let firedAt = new Date();
+  if (isOneTime) {
+    // atomic guard: only the replica that flips enabled true→false proceeds
+    const result = await db.update(schema.scheduledTasks)
+      .set({ enabled: false, lastRunAt: firedAt })
+      .where(and(eq(schema.scheduledTasks.id, task.id), eq(schema.scheduledTasks.enabled, true)))
+      .returning();
+    oneTimeTimers.delete(task.id);
+    if (result.length === 0) return;            // already fired by another instance
+  } else {
+    await db.update(schema.scheduledTasks).set({ lastRunAt: firedAt })
+      .where(eq(schema.scheduledTasks.id, task.id));
+  }
+  if (!task.groupId || !task.animaId) return;
+  // … then: enqueueDispatchJob({ triggerKind: 'scheduled', payload: { taskId: task.id },
+  //          idempotencyKey: isOneTime ? `scheduled:${task.id}` : `scheduled:${task.id}:${firedAt.toISOString()}` })
+}</script>
+  </div>
+
+  <div class="call warn"><div class="ic">⚠</div><div class="tx"><span class="h">Invariants</span>The anima cannot pick its own wake instant — it can only set <code class="inl">cronExpression</code>/<code class="inl">runAt</code> and trust the tick. Timers are in-memory: a deploy re-hydrates from the DB, so durable state must be the DB row, never the timer. Leader-lock keys gate multi-replica firing.</div></div>
+  <div class="call touch"><div class="ic">△</div><div class="tx"><span class="h">Where the proposal lands</span><b>P3/P5.</b> Add an <code class="inl">adaptiveWake()</code> path that honours <code class="inl">nextWakeAt</code> instead of forever-cron, plus a low-frequency <code class="inl">heartbeatBeat()</code> that loads state and decides "act or sleep?" Cron stays for genuinely periodic duties. This file is the natural home for the new wake logic.</div></div>
+</div></section>
+
+<!-- 04 EVENT TRIGGERS -->
+<section id="s4"><div class="wrap">
+  <div class="sec-head"><span class="sec-num">04</span><h2 class="sec">The event-trigger system</h2></div>
+  <p class="sec-sub">// apps/dispatch-worker/src/services/scheduler-event-triggers.ts</p>
+  <p class="lede">There is exactly <em>one</em> "wake on a signal rather than the clock" mechanism today: dispatch-complete waiters. Understand it before adding new event triggers — the goal is to extend this pattern, not duplicate it.</p>
+
+  <div class="code reveal" data-file="apps/dispatch-worker/src/services/scheduler-event-triggers.ts" data-lines="30–98" data-lang="typescript" data-cap="When a dispatch finalizes, runAnimaTurn calls this. It matches scheduled_tasks rows that were 'awaiting' either that dispatchId or that anima, and enqueues each as a 'scheduled' job. This is the seam a general event-trigger system slots into.">
+<script type="text/plain">// Anima calls bolter_await_dispatch(dispatchGroup | anima, message). When that
+// dispatch finalizes, run-anima-turn calls this fan-out to wake the waiter.
+export async function fireDispatchCompleteTriggers(args: {
+  dispatchId: string; animaId: string | null; groupId: string;
+}): Promise<void> {
+  const { dispatchId, animaId, groupId } = args;
+
+  const matchClauses: SQL[] = [eq(schema.scheduledTasks.triggerDispatchGroup, dispatchId)];
+  if (animaId != null) matchClauses.push(eq(schema.scheduledTasks.triggerAnimaId, animaId));
+  const matcher = matchClauses.length === 1 ? matchClauses[0] : or(...matchClauses);
+
+  const rows = await db.select().from(schema.scheduledTasks).where(and(
+    eq(schema.scheduledTasks.enabled, true),
+    eq(schema.scheduledTasks.triggerType, 'dispatch_complete'),
+    matcher,
+  ));
+  if (rows.length === 0) return;
+
+  for (const row of rows) {
+    const payload = row.payload as { message?: string } | null;
+    if (!payload?.message) continue;
+    await enqueueDispatchJob({
+      idempotencyKey: `scheduled:${row.id}`,
+      triggerKind: 'scheduled',
+      payload: { taskId: row.id, deleteAfterDispatch: true, fallbackGroupId: groupId },
+    });
+  }
+}</script>
+  </div>
+
+  <div class="call why"><div class="ic">▣</div><div class="tx"><span class="h">What this tells you</span>"Events" in bolter currently means "<b>another dispatch finished.</b>" There is no first-class subscription to inbound email, a calendar change, or a threshold crossing — though <code class="inl">webhook</code> and <code class="inl">email</code> trigger kinds already exist on the queue (Stop 02), so the inbound plumbing is partly there.</div></div>
+  <div class="call touch"><div class="ic">△</div><div class="tx"><span class="h">Where the proposal lands</span><b>P3.</b> Generalise this fan-out into a <code class="inl">registerEventTrigger()</code> that matches a responsibility's declared <code class="inl">triggers</code> against signals we already capture in-process (and the existing <code class="inl">webhook</code>/<code class="inl">email</code> kinds) — explicitly <em>not</em> a second source for events we already see.</div></div>
+</div></section>
+
+<!-- 05 HANDLER -->
+<section id="s5"><div class="wrap">
+  <div class="sec-head"><span class="sec-num">05</span><h2 class="sec">The scheduled-job handler — the smoking gun</h2></div>
+  <p class="sec-sub">// apps/dispatch-worker/src/dispatch-jobs/run-scheduled-job.ts</p>
+  <p class="lede">This is where a claimed <code class="inl">scheduled</code> job becomes an anima turn. Read the message it synthesizes carefully: the runtime hands the anima a <em>prose pep-talk</em> about surviving its own context loss, because there is no state object to lean on. This single block is the strongest argument for the whole redesign.</p>
+
+  <div class="code reveal" data-file="apps/dispatch-worker/src/dispatch-jobs/run-scheduled-job.ts" data-lines="162–211" data-lang="typescript" data-cap="The framing prompt. 'This dispatch is the entire delivery window.' 'Do not narrate your conventions for surviving context loss.' The anima is told to self-manage memory in prose — the platform gives it no structure to do so.">
+<script type="text/plain">let message = dutyBody;
+const isCronOrTimeTask = task.triggerType !== 'dispatch_complete';
+if (isCronOrTimeTask) {
+  message =
+    `Your scheduled duty is firing now. This dispatch is the entire delivery ` +
+    `window — there is no follow-up dispatch on this trigger.\n\n` +
+    `Behaviour: follow the user's steering. If they've told you how to handle ` +
+    `quiet ticks … follow that. If they've never said, default to posting: ` +
+    `substantive output if you have any, or a brief one-line "no update" status …\n\n` +
+    `Audience: your visible reply text goes straight to the end user … Do ` +
+    `not narrate internal state-management decisions (memory writes, compaction, ` +
+    `your own conventions for surviving context loss, the mechanics of "next ` +
+    `dispatch"). If you decide not to persist state, just don't — silently. …\n\n` +
+    `Your duty:\n${dutyBody}`;
+}
+
+await runAnimaTurn({
+  animaId: task.animaId, groupId, message,
+  senderName, senderType: 'system',
+  trigger: triggerFromScheduledTask(task, { triggerAnimaName }),
+  ...(executionClassOverride ? { executionClassOverride } : {}),
+  // Cron/one-time do NOT strip decline (sweep duties may stay quiet).
+  // Waiters keep mustDeliverVisibleReply=true — silently dropping a
+  // registered followup is the prod 2,734-incident regression the strip prevents.
+  mustDeliverVisibleReply: !isCronOrTimeTask,
+});</script>
+  </div>
+
+  <div class="call why"><div class="ic">▣</div><div class="tx"><span class="h">Read this twice</span>"<b>surviving context loss</b>" and "<b>if you decide not to persist state, just don't</b>" are the system <em>admitting</em> the two forces from the proposal. Memory across fires is the anima's manual problem; the runtime offers encouragement, not a charter or a ledger.</div></div>
+  <div class="call touch"><div class="ic">△</div><div class="tx"><span class="h">Where the proposal lands</span><b>P1/P2/P4.</b> This handler becomes <code class="inl">run-beat</code>: re-ground from <code class="inl">charter + state + last-K ledger</code>, do a short beat, run the fresh-lens assessment, append a ledger entry, update compact state, and decide the next wake. The prose paragraph is replaced by structure.</div></div>
+</div></section>
+
+<!-- 06 TURN LOOP -->
+<section id="s6"><div class="wrap">
+  <div class="sec-head"><span class="sec-num">06</span><h2 class="sec">The turn loop — what a "beat" runs inside</h2></div>
+  <p class="sec-sub">// apps/dispatch-worker/src/services/dispatch/ — run-anima-turn.ts, agent-loop.ts, model-selection.ts, dispatch.ts</p>
+  <p class="lede">Every fire ultimately runs one <span class="filechip">runAnimaTurn</span>: acquire the group lock, mint IDs, build context, run the agent loop (bounded + loop-guarded), post, then wake any waiters. A "beat" is this, with better grounding around it.</p>
+
+  <div class="code reveal" data-file="apps/dispatch-worker/src/services/dispatch/run-anima-turn.ts" data-lines="244–300, 503" data-lang="typescript" data-cap="Sequential groups hold a lock for the whole turn. IDs are minted before dispatch so chat order + streaming are stable. On finalize it calls fireDispatchCompleteTriggers (Stop 04) — that's the wake-the-waiters seam.">
+<script type="text/plain">export async function runAnimaTurn(args: RunAnimaTurnArgs): Promise<void> {
+  // Sequential groups: at most one dispatch at a time; lock held the WHOLE turn.
+  const isSequential = await getGroupDispatchMode(args.groupId) === 'sequential';
+  const lockDispatchId = randomUUID();
+  if (isSequential) {
+    const acquired = await acquireGroupDispatchLock(args.groupId, lockDispatchId);
+    if (!acquired) return;                       // timed out → skip this turn
+  }
+  const executionClass = args.executionClassOverride ?? 'chat_only';
+  try {
+    await runAnimaTurnBody(args);
+  } finally {
+    if (isSequential) await releaseGroupDispatchLock(args.groupId, lockDispatchId).catch(() => {});
+  }
+}
+
+async function runAnimaTurnBody(args) {
+  // Mint IDs BEFORE dispatch: startedAt anchors chat order; dispatchId groups
+  // every event (thinking, tool calls, text rows) for rendering.
+  const messageId = randomUUID();
+  const dispatchId = randomUUID();
+  const startedAt = new Date();
+  // … buildAnimaContext() → system prompt → runAgentLoop() → post …
+  // on finalize, wake peers that awaited this dispatch:
+  //   fireDispatchCompleteTriggers({ dispatchId, animaId: args.animaId, groupId: args.groupId });
+}</script>
+  </div>
+
+  <div class="code reveal" data-file="dispatch-budget.ts · agent-loop.ts · loop-detector.ts" data-lines="66 · 1135 · 34" data-lang="typescript" data-cap="Termination is bounded three ways: a hard turn cap, the model's own end_turn, and a sliding-window loop detector that aborts on repetition. These are the existing 'stop' rails the proposal's verifiable-completion sits beside, not on top of.">
+<script type="text/plain">// dispatch-budget.ts
+export const MAX_TURNS = 200;                 // hard cap on tool-call rounds per dispatch
+
+// agent-loop.ts  — the loop itself
+const maxTurns = context.maxTurns ?? budget.maxTurns;
+for (let turn = 0; turn < maxTurns; turn++) {
+  // call model → execute tool calls → repeat until stop_reason === 'end_turn'
+}
+
+// loop-detector.ts — observes every tool call over a sliding window
+const WINDOW_SIZE = 30;
+const THRESHOLDS = { warning: 10, critical: 20, abort: 30 }; // abort → throws LoopDetectedError
+export type LoopPattern = 'identical' | 'polling' | 'ping_pong';</script>
+  </div>
+
+  <details class="dd"><summary><span class="tw">▸</span> Execution class + the decline-response strip (model-selection.ts, dispatch.ts)</summary><div class="ddbody">
+  <div class="code" data-file="apps/dispatch-worker/src/services/dispatch/model-selection.ts" data-lines="3–13" data-lang="typescript" data-cap="Three classes; only heavy_tools maps to 'complex' (thinking + bigger output budget). Scheduled fires can pin this via executionClassOverride.">
+<script type="text/plain">export type ExecutionClass = 'chat_only' | 'light_tools' | 'heavy_tools';
+
+export function selectModel(executionClass: ExecutionClass): { complexity: 'simple' | 'complex'; model: string } {
+  return {
+    complexity: executionClass === 'heavy_tools' ? 'complex' : 'simple',
+    model: Env.AI_MODEL,
+  };
+}</script>
+  </div>
+  <div class="code" data-file="apps/dispatch-worker/src/services/dispatch/dispatch.ts" data-lines="118–139" data-lang="typescript" data-cap="Tool set is filtered per dispatch: incognito strips global-effect tools; committed fires strip decline so the anima can't silently drop the promise; DMs strip thread replies.">
+<script type="text/plain">let platformTools = isIncognito ? allTools.filter(t => t.effectScope !== 'global') : allTools;
+
+// Committed fires must not silently drop the promise: strip decline.
+if (params.mustDeliverVisibleReply) {
+  platformTools = platformTools.filter(t => t.name !== 'bolter_decline_response');
+}
+const isDm = (contextData.activeChats.find(c => c.id === groupId)?.participants.length ?? 0) <= 2;
+if (isDm) platformTools = platformTools.filter(t => t.name !== 'bolter_reply_in_thread');</script>
+  </div>
+  </div></details>
+
+  <div class="call warn"><div class="ic">⚠</div><div class="tx"><span class="h">Invariants</span>An anima <b>always responds on a turn</b> (fail loudly: post an anima-voice apology, never go silent). Sequential-group lock is held for the entire turn — don't bypass it. IDs minted pre-dispatch anchor ordering + streaming. <code class="inl">MAX_TURNS</code> and the loop detector are safety rails, not progress signals.</div></div>
+  <div class="call touch"><div class="ic">△</div><div class="tx"><span class="h">Where the proposal lands</span><b>P4/P6.</b> "Beats stay short" means keeping turn counts low and context small — working <em>with</em> these rails. The fresh-lens assessment runs as its own clean-context turn (or sub-agent), distinct from the loop-detector's mechanical repetition guard.</div></div>
+</div></section>
+
+<!-- 07 CONTEXT -->
+<section id="s7"><div class="wrap">
+  <div class="sec-head"><span class="sec-num">07</span><h2 class="sec">Context assembly — the re-grounding surface</h2></div>
+  <p class="sec-sub">// apps/dispatch-worker/src/redis/client.ts + services/dispatch/index.ts + packages/anima-core/src/system-prompt.ts</p>
+  <p class="lede">This is the entire world a fire sees, and where "re-ground from durable state" has to fit. Eight parallel fetches, a hard 50-message window, and a filter that decides which duties even appear in the prompt.</p>
+
+  <div class="code reveal" data-file="apps/dispatch-worker/src/redis/client.ts" data-lines="349, 414" data-lang="typescript" data-cap="Eight fetches define the dispatch's world. Recent messages are hard-capped at 50 — the duty's prior fire may already be gone. scheduledTasks here become the standing-responsibilities prompt section.">
+<script type="text/plain">async function _buildAnimaContext(animaId: string, groupId?: string) {
+  const [siblingAnimas, recentSummaries, recentMessages, recentAuditEntries,
+         activeTasks, scheduledTasks, pinnedWidgets, animaDatabases] = await Promise.all([
+    /* … 8 independent queries … */
+  ]);
+  // recent messages window is hard-capped:
+  //   return all.slice(0, 50).reverse();   // ← the duty's last fire can fall off the end
+  // scheduledTasks → buildStandingResponsibilities() → system-prompt section
+}</script>
+  </div>
+
+  <div class="code reveal" data-file="apps/dispatch-worker/src/services/dispatch/index.ts" data-lines="141–195" data-lang="typescript" data-cap="The filter that decides which duties the model sees. Disabled rows and >24h-overdue one-time rows are culled. Cron first, then one-time by soonest. There is no 'progress' to surface — only description + lastRunAt.">
+<script type="text/plain">export function buildStandingResponsibilities(scheduledTasks: unknown): ContextData['standingResponsibilities'] {
+  if (!Array.isArray(scheduledTasks)) return [];
+  const now = Date.now();
+  const out = [];
+  for (const r of scheduledTasks as RawRow[]) {
+    if (!r || r.enabled !== true) continue;                 // disabled → hidden
+    if (!r.id || !r.description) continue;
+    if (r.cronExpression == null && r.runAt) {              // one-time
+      const t = new Date(r.runAt).getTime();
+      if (Number.isFinite(t) && t < now - 24 * 60 * 60 * 1000) continue; // >1d overdue → skip (stuck row)
+    }
+    out.push({ taskId: r.id, description: r.description.slice(0, 400),
+      cronExpression: r.cronExpression ?? null, runAt: r.runAt ?? null,
+      lastRunAt: r.lastRunAt ?? null, nextRunAt: r.nextRunAt ?? null, groupId: r.groupId ?? null });
+  }
+  out.sort((a, b) => {                                       // cron first, then one-time by soonest
+    const aC = a.cronExpression != null, bC = b.cronExpression != null;
+    if (aC !== bC) return aC ? -1 : 1;
+    if (!aC && a.runAt && b.runAt) return new Date(a.runAt).getTime() - new Date(b.runAt).getTime();
+    return 0;
+  });
+  return out;
+}</script>
+  </div>
+
+  <details class="dd"><summary><span class="tw">▸</span> How it renders into the system prompt (anima-core)</summary><div class="ddbody">
+  <div class="code" data-file="packages/anima-core/src/system-prompt.ts" data-lines="297–323" data-lang="typescript" data-cap="The prompt section. Each duty is description + cadence + lastRunAt. No success criteria, no state, no 'last verdict' — exactly the gap the proposal fills by reciting charter + acceptance + compact state at the top of the beat.">
+<script type="text/plain">function buildStandingResponsibilities(config: SystemPromptConfig): string {
+  const items = config.context.standingResponsibilities ?? [];
+  if (items.length === 0) return '';
+  let s = `\n## Your Standing Responsibilities\n`;
+  s += `Scheduled tasks you have set up. Each one is a duty you committed to — when one fires, ` +
+       `you are mid-delivery on a promise to your owner. Use bolter_list_tasks for full detail, ` +
+       `bolter_cancel_task to retire one.\n\n`;
+  for (const t of items) {
+    const chatLabel = t.groupId ? (config.context.activeChats.find(c => c.id === t.groupId)?.name || t.groupId) : null;
+    if (t.cronExpression) {
+      s += `- [cron \`${t.cronExpression}\`] ${t.description}`;
+      if (chatLabel) s += ` (posts in "${chatLabel}")`;
+      if (t.lastRunAt) s += `  · last fired ${t.lastRunAt}`;
+      s += `\n`;
+    } else if (t.runAt) {
+      s += `- [one-time at ${t.runAt}] ${t.description}` + (chatLabel ? ` (posts in "${chatLabel}")` : '') + `\n`;
+    }
+  }
+  return s;
+}</script>
+  </div>
+  </div></details>
+
+  <div class="call warn"><div class="ic">⚠</div><div class="tx"><span class="h">Invariants</span>A fire that skips <span class="filechip">buildAnimaContext</span> sees no duties at all. The 50-message window means <b>chat is not reliable cross-fire memory</b> — this is the decay function in code. <span class="filechip">redis/client.ts</span> (CORE_TOOLS) is a shared-pain file.</div></div>
+  <div class="call touch"><div class="ic">△</div><div class="tx"><span class="h">Where the proposal lands</span><b>P2.</b> Add the responsibility's <code class="inl">charter + acceptance + compact state + last-K ledger</code> as a high-priority prompt block (recitation, at the top) sourced from the durable row — small, fixed-size, and independent of the 50-message window.</div></div>
+</div></section>
+
+<!-- 08 TOOLS -->
+<section id="s8"><div class="wrap">
+  <div class="sec-head"><span class="sec-num">08</span><h2 class="sec">Tools &amp; the registration ritual</h2></div>
+  <p class="sec-sub">// apps/dispatch-worker/src/tools/ — scheduling.ts, index.ts; packages/shared/src/permissions.ts</p>
+  <p class="lede">The anima edits its own duties through three tools. Adding the proposal's ~5 new tools is mechanical but guarded: a drift test enforces registration in three places. Get the ritual right or CI blocks you.</p>
+
+  <div class="code reveal" data-file="apps/dispatch-worker/src/tools/scheduling.ts" data-lines="8–37" data-lang="typescript" data-cap="The current self-scheduling surface: bolter_schedule_task (+ _update / _cancel / _list). effectScope:'global' means it's stripped in incognito groups. getCurrentAnimaId() is how a handler gets identity — there's no explicit context param.">
+<script type="text/plain">export function getSchedulingTools(): ToolDescriptor[] {
+  return [
+    {
+      name: 'bolter_schedule_task',
+      effectScope: 'global',
+      description: 'Schedule a task to run at a specific time or on a cron schedule',
+      parameters: Type.Object({
+        description: Type.String({ description: 'What the task should do' }),
+        groupId: Type.String({ description: 'Target group for task output when this task fires' }),
+        cronExpression: Type.Optional(Type.String()),
+        runAt: Type.Optional(Type.String({ description: 'ISO date string for one-time tasks' })),
+        payload: Type.Optional(Type.Record(Type.String(), Type.Unknown())),
+      }),
+      execute: async (params) => {
+        const animaId = getCurrentAnimaId();              // identity via async-local context
+        const task = await createTask({ animaId, groupId: params.groupId as string,
+          cronExpression: params.cronExpression as string | undefined,
+          runAt: params.runAt ? new Date(params.runAt as string) : undefined,
+          description: params.description as string,
+          payload: params.payload as Record<string, unknown> | undefined });
+        return jsonResult({ success: true, task });
+      },
+    },
+    // … bolter_cancel_task, bolter_update_task (ownership-guarded), bolter_list_tasks
+  ];
+}</script>
+  </div>
+
+  <div class="code reveal" data-file="apps/dispatch-worker/src/tools/index.ts" data-lines="71–104" data-lang="typescript" data-cap="The registry: 31 tool modules concatenated, each wrapped. New tools join this list AND get classified in permissions.ts. The tool-drift test fails otherwise.">
+<script type="text/plain">export function getAllTools(): ToolDescriptor[] {
+  return [
+    ...getChatTools(),
+    ...getSchedulingTools(),     // ← duty tools live here
+    ...getGroupTools(),
+    /* … 27 more modules … */
+    ...getAnimaTaskTools(),
+    ...getSearchTools(),
+  ].map(wrapWithCheckpointNudge);
+}</script>
+  </div>
+
+  <div class="call warn"><div class="ic">⚠</div><div class="tx"><span class="h">Invariants (the registration ritual)</span>A new tool must be (1) added to <span class="filechip">getAllTools()</span>, and (2) classified in one of <code class="inl">TOOL_CAPABILITY_MAP</code> + <code class="inl">CAPABILITY_METADATA</code> + <code class="inl">DEFAULT_GRANTS</code> (grant-gated), <code class="inl">INTRINSIC_TOOLS</code> (audited, no grant), or <code class="inl">UNGATED_BY_DESIGN</code>. Tools returning secrets set <code class="inl">sensitiveResult:true</code>. The <span class="filechip">tool-drift.test.ts</span> enforces all of this. <span class="filechip">tools/index.ts</span> is a shared-pain file.</div></div>
+  <div class="call touch"><div class="ic">△</div><div class="tx"><span class="h">Where the proposal lands</span><b>P1/P4/P5.</b> New tools — <code class="inl">bolter_set_charter</code>, <code class="inl">bolter_update_responsibility_state</code>, <code class="inl">bolter_set_next_beat</code>, <code class="inl">bolter_watch_event</code>, <code class="inl">bolter_escalate_to_owner</code> — register exactly like the scheduling tools, gated under a <code class="inl">scheduling.manage</code>-style capability.</div></div>
+</div></section>
+
+<!-- 09 CHANGE MAP -->
+<section id="s9"><div class="wrap">
+  <div class="sec-head"><span class="sec-num">09</span><h2 class="sec">The change-surface map</h2></div>
+  <p class="sec-sub">// every pillar × the stops it touches × reused vs net-new</p>
+  <p class="lede">The synthesis. Most of the proposal is data and re-grounding; the durable spine (Stops 02, 06) is reused untouched. Tags: <span class="tag reuse">reuse</span> existing infra, <span class="tag new">new</span> net-new surface, <span class="tag care">care</span> invariant/coordination risk.</p>
+
+  <div class="tblwrap reveal"><table class="tbl">
+    <tr><th>Pillar</th><th>Stops it touches</th><th>What changes</th></tr>
+    <tr><td><span class="p">P1</span> Charter</td><td>01 domain · 07 context · 08 tools</td><td><span class="tag new">new</span> charter/acceptance columns · <span class="tag new">new</span> <code class="inl">set_charter</code> tool · <span class="tag reuse">reuse</span> prompt-section render</td></tr>
+    <tr><td><span class="p">P2</span> Durable state</td><td>01 domain · 05 handler · 07 context</td><td><span class="tag new">new</span> <code class="inl">responsibility_beats</code> ledger + compact <code class="inl">state</code> · <span class="tag reuse">reuse</span> memory infra · <span class="tag care">care</span> recitation must beat the 50-msg window</td></tr>
+    <tr><td><span class="p">P3</span> Signals</td><td>02 queue · 03 scheduler · 04 events</td><td><span class="tag reuse">reuse</span> <code class="inl">webhook</code>/<code class="inl">email</code> kinds + dispatch_complete fan-out · <span class="tag new">new</span> <code class="inl">registerEventTrigger</code> · <span class="tag care">care</span> no duplicate event sources</td></tr>
+    <tr><td><span class="p">P4</span> Fresh-lens progress</td><td>05 handler · 06 turn loop</td><td><span class="tag new">new</span> clean-context assessment turn · <span class="tag reuse">reuse</span> agent loop + loop detector · <span class="tag care">care</span> bound its token cost</td></tr>
+    <tr><td><span class="p">P5</span> Adaptive cadence + escalation</td><td>01 domain · 03 scheduler · 08 tools</td><td><span class="tag new">new</span> write <code class="inl">nextWakeAt</code> + <code class="inl">budget</code> · <span class="tag new">new</span> <code class="inl">set_next_beat</code>/<code class="inl">escalate_to_owner</code> · <span class="tag reuse">reuse</span> leader-lock firing</td></tr>
+    <tr><td><span class="p">P6</span> Short beats / serialize writes</td><td>02 queue · 06 turn loop</td><td><span class="tag reuse">reuse</span> durable queue + sequential lock + sub-agent pattern · <span class="tag care">care</span> keep turns short</td></tr>
+  </table></div>
+
+  <div class="call warn"><div class="ic">⚠</div><div class="tx"><span class="h">Process invariants for ANY change here</span>Branch off <code class="inl">main</code>, open a PR (no direct push). Expand/contract migrations, never <code class="inl">drizzle-kit push</code>. Touching <span class="filechip">schema.ts</span> / <span class="filechip">chat-core</span> / <span class="filechip">tools/index.ts</span> / <span class="filechip">redis/client.ts</span> means announce first (shared-pain). New dispatch-worker captures need a PostHog event. Update the matching <span class="filechip">docs/</span> file. Architecture calls (schema, grants, service comms) are human decisions.</div></div>
+</div></section>
+
+<!-- 10 READ FIRST -->
+<section id="s10"><div class="wrap">
+  <div class="sec-head"><span class="sec-num">10</span><h2 class="sec">If you read five files first</h2></div>
+  <p class="sec-sub">// the fastest path to a correct mental model</p>
+
+  <div class="read5 reveal">
+    <div class="r"><div class="num">1</div><div><h4><span class="filechip">dispatch-jobs/run-scheduled-job.ts</span></h4><p>Start at the smoking gun (Stop 05). It shows what a duty fire actually is today and why the redesign exists — the prose substitute for state.</p></div></div>
+    <div class="r"><div class="num">2</div><div><h4><span class="filechip">services/scheduler.ts</span></h4><p>The clock: init → scheduleTask → fireTask → enqueue. This is the surface P3/P5 reshape; know it before adding adaptive/event wakes.</p></div></div>
+    <div class="r"><div class="num">3</div><div><h4><span class="filechip">chat-core/dispatch-jobs/enqueue.ts</span> + <span class="filechip">worker-loop.ts</span></h4><p>The durable spine + exactly-one claim. Every wake path rides this; it's reused untouched, so understand its guarantees, don't reinvent them.</p></div></div>
+    <div class="r"><div class="num">4</div><div><h4><span class="filechip">services/dispatch/index.ts</span> + <span class="filechip">anima-core/system-prompt.ts</span></h4><p>How duties enter the model's context and how thin that signal is. This is where re-grounding (P2) has to fit.</p></div></div>
+    <div class="r"><div class="num">5</div><div><h4><span class="filechip">services/dispatch/run-anima-turn.ts</span></h4><p>The turn a beat runs inside: locking, ID minting, the fire-the-waiters seam. Plus the limits in <span class="filechip">dispatch-budget.ts</span> / <span class="filechip">loop-detector.ts</span>.</p></div></div>
+  </div>
+
+  <div class="checklist reveal">
+    <h4>Pre-change checklist</h4>
+    <ul>
+      <li>New wake path <b>enqueues</b> via <code class="inl">enqueueDispatchJob</code> — never calls <code class="inl">runAnimaTurn</code> directly.</li>
+      <li>Idempotency key is <b>unique per logical fire</b> (timestamped for recurring, stable for one-shot).</li>
+      <li>New <code class="inl">trigger_kind</code> has a matching <b>trigger validator</b>.</li>
+      <li>Committed fires set <code class="inl">mustDeliverVisibleReply</code> appropriately; an anima <b>always responds</b>.</li>
+      <li>Re-grounding block is <b>fixed-size</b> and independent of the 50-message window.</li>
+      <li>New tools pass the <b>drift test</b> (registry + capability + sensitiveResult).</li>
+      <li>Migrations are <b>expand/contract</b>, registered in <code class="inl">_journal.json</code>; no <code class="inl">drizzle-kit push</code>.</li>
+      <li><b>Announce</b> shared-pain file edits; open a <b>PR</b>; add PostHog events; update <code class="inl">docs/</code>.</li>
+      <li>Tests cover: re-fire dedup, stale-task filtering, sequential lock held, dispatch-complete fan-out.</li>
+    </ul>
+  </div>
+
+  <div class="call why"><div class="ic">▣</div><div class="tx"><span class="h">Then go read the proposal</span>This atlas is the "what exists." The <a class="inl" href="index.html">Stewardship proposal</a> is the "what we'd make it." Read them side by side.</div></div>
+</div></section>
+
+</main>
+</div>
+
+<footer><div class="wrap">
+  <span>📍 <b>Bolter internal</b> — Codebase Atlas · companion to the Stewardship proposal · shared via secret link.</span>
+  <span>Code excerpts verbatim from the bolter tree · file + line labelled on each card.</span>
+</div></footer>
+
+<button id="toTop" aria-label="Back to top">↑</button>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script>
+(function(){
+  // build code cards from raw <script type=text/plain> blocks (no HTML escaping needed)
+  document.querySelectorAll('.code').forEach(function(box){
+    var raw = box.querySelector('script[type="text/plain"]');
+    if(!raw) return;
+    var src = raw.textContent.replace(/^\n+/,'').replace(/\s+$/,'');
+    var lang = box.getAttribute('data-lang') || 'typescript';
+    var file = box.getAttribute('data-file') || '';
+    var lines = box.getAttribute('data-lines') || '';
+    var cap = box.getAttribute('data-cap') || '';
+    var head = document.createElement('div'); head.className='chead';
+    head.innerHTML = '<span class="lang">'+lang+'</span><span class="fp">'+file+'</span>'+(lines?'<span class="ln">'+lines+'</span>':'');
+    box.appendChild(head);
+    if(cap){ var c=document.createElement('div'); c.className='cap'; c.textContent=cap; box.appendChild(c); }
+    var pre=document.createElement('pre'); var code=document.createElement('code');
+    code.className='language-'+lang; code.textContent=src;
+    pre.appendChild(code); box.appendChild(pre);
+    raw.remove();
+    try{ if(window.hljs) hljs.highlightElement(code); }catch(e){}
+  });
+
+  var prog=document.getElementById('progress'); var toTop=document.getElementById('toTop');
+  function onScroll(){ var h=document.documentElement; var sc=h.scrollTop||document.body.scrollTop;
+    var max=(h.scrollHeight-h.clientHeight)||1; prog.style.width=Math.min(100,sc/max*100)+'%';
+    toTop.classList.toggle('show', sc>700);
+  }
+  document.addEventListener('scroll',onScroll,{passive:true}); onScroll();
+  toTop.addEventListener('click',function(){ window.scrollTo({top:0,behavior:'smooth'}); });
+
+  var rail=document.querySelectorAll('#rail a');
+  var secs=Array.from(rail).map(function(a){ var id=a.getAttribute('href').slice(1); return {a:a, el:document.getElementById(id)}; }).filter(function(s){return s.el;});
+  function active(){ var pos=(window.scrollY||0)+window.innerHeight*0.3; var cur=secs[0];
+    secs.forEach(function(s){ if(s.el.offsetTop<=pos) cur=s; });
+    rail.forEach(function(a){a.classList.remove('active');}); if(cur) cur.a.classList.add('active');
+  }
+  document.addEventListener('scroll',active,{passive:true}); active();
+
+  if('IntersectionObserver' in window && !window.matchMedia('(prefers-reduced-motion: reduce)').matches){
+    var io=new IntersectionObserver(function(es){ es.forEach(function(e){ if(e.isIntersecting){ e.target.classList.add('in'); io.unobserve(e.target);} }); },{threshold:0.1});
+    document.querySelectorAll('.reveal').forEach(function(el){ io.observe(el); });
+  } else { document.querySelectorAll('.reveal').forEach(function(el){ el.classList.add('in'); }); }
+})();
+</script>
+</body>
+</html>
