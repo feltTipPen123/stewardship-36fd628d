@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="robots" content="noindex, nofollow" />
+<title>Offload-Bench — measuring whether you can hand a responsibility to an anima</title>
+<meta name="description" content="A bolter-specific evaluation for how well a person can offload a big, complex responsibility to one or many animas — and what existing benchmarks we borrow from." />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400..900;1,9..144,400..700&family=Hanken+Grotesk:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#16120D; --paper-2:#1E1813; --card:#231D15;
+    --ink:#F2E9D7; --ink-soft:#CBBDA4; --ink-faint:#90826A;
+    --line:#352B20; --line-strong:#4B3E2C;
+    --signal:#F0654A; --signal-deep:#F6896E;   /* vermilion — risk / unreliability */
+    --stable:#3FB89E; --stable-deep:#75D5BE;    /* teal — solution / pass */
+    --gold:#E7B23E; --gold-deep:#F0C766;        /* amber — the brand here: measurement */
+    --violet:#AE9BDD;
+    --shadow: 0 1px 0 rgba(0,0,0,.2), 0 14px 34px -18px rgba(0,0,0,.72);
+    --shadow-lg: 0 2px 0 rgba(0,0,0,.25), 0 36px 70px -28px rgba(0,0,0,.82);
+    --maxw: 1180px; --read: 780px;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth; scroll-padding-top:84px}
+  @media (prefers-reduced-motion: reduce){ html{scroll-behavior:auto} *{animation:none !important; transition:none !important} }
+  body{margin:0; background:var(--paper); color:var(--ink);
+    font-family:"Hanken Grotesk",system-ui,sans-serif; font-size:18px; line-height:1.62; letter-spacing:.002em;
+    -webkit-font-smoothing:antialiased;
+    background-image:radial-gradient(circle at 12% -5%,rgba(231,178,62,.10),transparent 42%),radial-gradient(circle at 92% 4%,rgba(63,184,158,.09),transparent 38%);
+    background-attachment:fixed;}
+  body::before{content:""; position:fixed; inset:0; z-index:0; pointer-events:none; opacity:.05;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.5'/%3E%3C/svg%3E"); mix-blend-mode:overlay;}
+  .wrap{position:relative; z-index:1; max-width:var(--maxw); margin:0 auto; padding:0 28px}
+
+  #progress{position:fixed; top:0; left:0; height:4px; width:0%; z-index:60; background:linear-gradient(90deg,var(--gold),var(--signal),var(--stable)); transition:width .12s linear}
+  .topbar{position:fixed; top:0; left:0; right:0; z-index:50; height:62px; display:flex; align-items:center; backdrop-filter:saturate(1.3) blur(8px); background:rgba(20,16,11,.86); border-bottom:1px solid var(--line)}
+  .topbar .wrap{display:flex; align-items:center; gap:18px; width:100%}
+  .brand{font-family:"Fraunces",serif; font-weight:900; font-size:20px; letter-spacing:-.01em; display:flex; align-items:center; gap:9px}
+  .brand .dot{width:11px;height:11px;border-radius:3px;background:var(--gold);box-shadow:0 0 0 4px rgba(231,178,62,.2)}
+  .brand small{font-family:"JetBrains Mono",monospace; font-weight:500; font-size:11px; color:var(--ink-faint); letter-spacing:.04em; text-transform:uppercase}
+  .topnav{margin-left:auto; display:flex; gap:6px; align-items:center}
+  .topnav a{font-size:13px; font-weight:600; color:var(--ink-soft); text-decoration:none; padding:7px 11px; border-radius:8px}
+  .topnav a:hover{background:var(--paper-2); color:var(--ink)}
+  .topnav a.back{border:1px solid var(--line-strong)}
+  @media(max-width:980px){ .topnav a:not(.back){display:none} }
+
+  /* left rail dot-nav — anchored to the gutter, labels expand outward */
+  .rail{position:fixed; right:calc(50% + 590px + 28px); left:auto; top:50%; transform:translateY(-50%); z-index:40; display:flex; flex-direction:column; align-items:flex-end; gap:13px}
+  .rail a{display:flex; flex-direction:row-reverse; align-items:center; gap:10px; text-decoration:none; color:var(--ink-faint); font-size:11px; font-weight:700; letter-spacing:.04em; text-transform:uppercase}
+  .rail a .pip{width:11px;height:11px;border-radius:50%;border:2px solid var(--line-strong); background:transparent; transition:.2s}
+  .rail a .lbl{opacity:0; transform:translateX(4px); transition:.2s; white-space:nowrap; text-align:right}
+  .rail a:hover .lbl, .rail a.active .lbl{opacity:1; transform:none}
+  .rail a:hover .pip{border-color:var(--ink-faint)}
+  .rail a.active{color:var(--ink)}
+  .rail a.active .pip{background:var(--gold); border-color:var(--gold); box-shadow:0 0 0 4px rgba(231,178,62,.2)}
+  @media(max-width:1480px){ .rail{display:none} }
+
+  header.hero{padding:128px 0 36px}
+  .kicker{font-family:"JetBrains Mono",monospace; font-size:12.5px; letter-spacing:.16em; text-transform:uppercase; color:var(--gold-deep); font-weight:700; display:flex; align-items:center; gap:12px}
+  .kicker::before{content:""; width:34px; height:2px; background:var(--gold)}
+  h1.title{font-family:"Fraunces",serif; font-weight:900; font-size:clamp(40px,6.4vw,76px); line-height:1.0; letter-spacing:-.026em; margin:.3em 0 .14em; max-width:16ch}
+  h1.title em{font-style:italic; color:var(--gold)}
+  .dek{font-size:clamp(18px,2.2vw,23px); color:var(--ink-soft); max-width:40ch; line-height:1.46; font-weight:500}
+  .hero-meta{display:flex; flex-wrap:wrap; gap:10px; margin-top:24px}
+  .chip{font-family:"JetBrains Mono",monospace; font-size:11.5px; font-weight:500; padding:6px 11px; border:1px solid var(--line-strong); border-radius:100px; color:var(--ink-soft); background:var(--paper-2)}
+  .chip b{color:var(--ink)}
+  .hero-cta{display:flex; gap:12px; margin-top:28px; flex-wrap:wrap}
+  .btn{font-weight:700; font-size:15px; text-decoration:none; padding:13px 22px; border-radius:12px; display:inline-flex; align-items:center; gap:9px; transition:.18s; border:2px solid transparent}
+  .btn.primary{background:var(--gold); color:#241a06} .btn.primary:hover{transform:translateY(-2px); box-shadow:var(--shadow-lg)}
+  .btn.ghost{border-color:var(--line-strong); color:var(--ink)} .btn.ghost:hover{border-color:var(--ink); background:var(--paper-2)}
+
+  .tldr{margin:42px 0 8px; background:var(--card); border:1px solid var(--line); border-left:5px solid var(--gold); border-radius:16px; padding:24px 28px; box-shadow:var(--shadow)}
+  .tldr h2{font-family:"Hanken Grotesk"; font-size:13px; letter-spacing:.14em; text-transform:uppercase; color:var(--gold-deep); margin:0 0 6px}
+  .tldr .big{font-family:"Fraunces",serif; font-size:clamp(20px,2.5vw,26px); line-height:1.36; font-weight:500; letter-spacing:-.01em; color:var(--ink)}
+  .tldr .big b{color:var(--gold-deep); font-weight:700} .tldr .big .t{color:var(--stable-deep); font-weight:700} .tldr .big .s{color:var(--signal-deep); font-weight:700}
+
+  section{padding:58px 0; border-top:1px solid var(--line)}
+  .sec-head{display:flex; align-items:baseline; gap:15px}
+  .sec-num{font-family:"JetBrains Mono",monospace; font-size:13px; font-weight:700; color:var(--gold); letter-spacing:.04em}
+  h2.sec{font-family:"Fraunces",serif; font-weight:800; font-size:clamp(28px,4.2vw,44px); line-height:1.03; letter-spacing:-.022em; margin:0}
+  .sec-sub{color:var(--ink-faint); font-size:13.5px; font-family:"JetBrains Mono",monospace; margin:6px 0 0}
+  p{max-width:var(--read)} .lede{font-size:20px; color:var(--ink-soft); max-width:var(--read); margin:18px 0 0; line-height:1.52}
+  h3.sub{font-family:"Fraunces",serif; font-weight:700; font-size:22px; margin:34px 0 4px; letter-spacing:-.01em; color:var(--gold-deep)}
+  code.inl{font-family:"JetBrains Mono",monospace; font-size:.85em; background:var(--paper-2); border:1px solid var(--line); padding:1px 5px; border-radius:5px; color:var(--ink)}
+
+  .oneline{display:flex; gap:14px; align-items:flex-start; background:linear-gradient(180deg,var(--paper-2),var(--card)); border:1px solid var(--line); border-radius:14px; padding:16px 20px; margin:24px 0; max-width:var(--read); box-shadow:var(--shadow)}
+  .oneline .zap{flex:0 0 auto; width:34px; height:34px; border-radius:9px; display:grid; place-items:center; background:var(--gold); color:#241a06; font-size:18px}
+  .oneline.teal .zap{background:var(--stable); color:#0c1a16} .oneline.sig .zap{background:var(--signal); color:#1a0d09}
+  .oneline .txt{font-size:16px; font-weight:600; color:var(--ink); line-height:1.42}
+  .oneline .txt span{display:block; font-size:11px; font-weight:700; letter-spacing:.13em; text-transform:uppercase; color:var(--ink-faint); margin-bottom:2px}
+
+  /* tables (mobile-scrollable) */
+  .tblwrap{margin:22px 0; max-width:960px; overflow-x:auto; -webkit-overflow-scrolling:touch; border-radius:12px; border:1px solid var(--line)}
+  table.tbl{width:100%; min-width:640px; border-collapse:collapse; font-size:14.5px; background:var(--card)}
+  .tbl th,.tbl td{text-align:left; padding:11px 15px; border-bottom:1px solid var(--line); vertical-align:top}
+  .tbl th{font-family:"JetBrains Mono",monospace; font-size:11px; text-transform:uppercase; letter-spacing:.06em; color:var(--ink-faint); background:var(--paper-2)}
+  .tbl td b{color:var(--ink)} .tbl tr:last-child td{border-bottom:none}
+  .tbl .src{font-family:"JetBrains Mono",monospace; font-size:11.5px; color:var(--gold-deep); white-space:nowrap}
+  .tbl .metric{font-weight:700; color:var(--ink); white-space:nowrap}
+
+  /* dimension / mode cards */
+  .grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); gap:16px; margin:26px 0}
+  .dcard{background:var(--card); border:1px solid var(--line); border-radius:16px; padding:22px; box-shadow:var(--shadow); position:relative; transition:.2s}
+  .dcard:hover{transform:translateY(-3px); box-shadow:var(--shadow-lg); border-color:var(--line-strong)}
+  .dcard .dn{font-family:"Fraunces",serif; font-weight:900; font-size:40px; line-height:.8; color:var(--line-strong); position:absolute; top:18px; right:20px}
+  .dcard h3{font-family:"Fraunces",serif; font-weight:800; font-size:20px; letter-spacing:-.01em; margin:0 0 8px; max-width:15ch}
+  .dcard p{font-size:14.5px; color:var(--ink-soft); margin:.4em 0; max-width:none}
+  .dcard .src{display:inline-block; font-family:"JetBrains Mono",monospace; font-size:10.5px; letter-spacing:.04em; color:var(--gold-deep); background:rgba(231,178,62,.13); border:1px solid rgba(231,178,62,.3); padding:3px 8px; border-radius:100px; margin-bottom:10px}
+  .dcard .catch{font-size:13px; color:var(--ink-faint); border-top:1px dashed var(--line-strong); margin-top:12px; padding-top:10px}
+  .dcard .catch b{color:var(--signal-deep)}
+
+  /* autonomy ladder */
+  .ladder{display:flex; flex-direction:column; gap:8px; margin:24px 0; max-width:var(--read)}
+  .rung{display:grid; grid-template-columns:60px 1fr; gap:16px; align-items:center; background:var(--card); border:1px solid var(--line); border-radius:12px; padding:13px 16px; box-shadow:var(--shadow)}
+  .rung .lv{font-family:"Fraunces",serif; font-weight:900; font-size:20px; text-align:center; padding:6px 0; border-radius:8px}
+  .rung .d h4{margin:0 0 2px; font-size:15.5px} .rung .d p{margin:0; font-size:13.5px; color:var(--ink-faint); max-width:none}
+  .rung.l1 .lv{background:rgba(240,101,74,.16); color:var(--signal-deep)} .rung.l2 .lv{background:rgba(240,101,74,.12); color:var(--signal-deep)}
+  .rung.l3 .lv{background:rgba(231,178,62,.16); color:var(--gold-deep)} .rung.l4 .lv{background:rgba(231,178,62,.13); color:var(--gold-deep)}
+  .rung.l5 .lv{background:rgba(63,184,158,.14); color:var(--stable-deep)} .rung.l6 .lv{background:rgba(63,184,158,.18); color:var(--stable-deep)}
+
+  /* scenario anatomy block */
+  .anatomy{background:var(--card); border:1px solid var(--line); border-radius:16px; padding:24px 26px; margin:24px 0; max-width:860px; box-shadow:var(--shadow)}
+  .anatomy h4{margin:0 0 14px; font-family:"JetBrains Mono",monospace; font-size:12px; letter-spacing:.1em; text-transform:uppercase; color:var(--gold-deep)}
+  .anatomy .row{display:grid; grid-template-columns:160px 1fr; gap:14px; padding:9px 0; border-bottom:1px solid var(--line); font-size:14.5px}
+  .anatomy .row:last-child{border-bottom:none}
+  .anatomy .row .k{font-family:"JetBrains Mono",monospace; font-size:12.5px; color:var(--gold-deep); font-weight:700}
+  .anatomy .row .v{color:var(--ink-soft)} .anatomy .row .v b{color:var(--ink)}
+  .evt{font-family:"JetBrains Mono",monospace; font-size:11.5px; padding:2px 7px; border-radius:5px; margin:1px 3px 1px 0; display:inline-block; white-space:nowrap}
+  .evt.act{background:rgba(63,184,158,.14); color:var(--stable-deep)} .evt.quiet{background:rgba(144,130,106,.18); color:var(--ink-soft)} .evt.esc{background:rgba(231,178,62,.16); color:var(--gold-deep)} .evt.irr{background:rgba(240,101,74,.16); color:var(--signal-deep)} .evt.man{background:rgba(240,101,74,.12); color:var(--signal-deep)} .evt.pref{background:rgba(174,155,221,.16); color:var(--violet)}
+  @media(max-width:560px){ .anatomy .row{grid-template-columns:1fr; gap:5px} .anatomy{padding:20px} }
+
+  /* flow (phasing) */
+  .flow{display:grid; gap:0; margin:26px 0; max-width:var(--read)}
+  .step{display:grid; grid-template-columns:50px 1fr; gap:18px; align-items:start; position:relative; padding-bottom:24px}
+  .step:not(:last-child)::before{content:""; position:absolute; left:24px; top:44px; bottom:0; width:2px; background:linear-gradient(var(--line-strong),var(--line))}
+  .step .ic{width:50px; height:50px; border-radius:13px; display:grid; place-items:center; font-family:"JetBrains Mono",monospace; font-weight:700; font-size:14px; background:var(--card); border:2px solid var(--gold); color:var(--gold-deep); box-shadow:var(--shadow); z-index:1}
+  .step .cont h4{margin:5px 0 4px; font-family:"Fraunces",serif; font-size:19px; font-weight:800}
+  .step .cont p{margin:0; font-size:15px; color:var(--ink-soft); max-width:none}
+  .step .cont .mini{font-family:"JetBrains Mono",monospace; font-size:12px; color:var(--ink-faint); margin-top:4px}
+
+  details.dd{border:1px solid var(--line); border-radius:12px; margin:14px 0; background:var(--paper-2); max-width:var(--read); overflow:hidden}
+  details.dd>summary{cursor:pointer; list-style:none; padding:13px 17px; font-weight:700; font-size:15px; color:var(--ink); display:flex; align-items:center; gap:10px}
+  details.dd>summary::-webkit-details-marker{display:none}
+  details.dd>summary .tw{transition:.2s; color:var(--gold); font-family:"JetBrains Mono",monospace}
+  details.dd[open]>summary .tw{transform:rotate(90deg)}
+  details.dd .ddbody{padding:2px 17px 14px; color:var(--ink-soft); font-size:15px}
+  details.dd .ddbody p{max-width:none}
+
+  .refs{columns:2; column-gap:32px; margin-top:16px}
+  @media(max-width:760px){ .refs{columns:1} }
+  .refs .ref{break-inside:avoid; font-size:13px; color:var(--ink-soft); padding:8px 0; border-bottom:1px solid var(--line); line-height:1.4}
+  .refs .ref a{color:var(--gold-deep); text-decoration:none; word-break:break-word} .refs .ref a:hover{text-decoration:underline}
+  .refs .ref b{color:var(--ink)}
+  cite{font-style:normal; font-family:"JetBrains Mono",monospace; font-size:11px; color:var(--gold-deep); font-weight:700; vertical-align:super}
+
+  mark{background:linear-gradient(180deg,transparent 55%,rgba(231,178,62,.32) 55%); padding:0 1px} mark.t{background:linear-gradient(180deg,transparent 55%,rgba(63,184,158,.32) 55%)} mark.s{background:linear-gradient(180deg,transparent 55%,rgba(240,101,74,.32) 55%)}
+  strong{font-weight:700; color:var(--ink)}
+  footer{padding:54px 0 90px; border-top:1px solid var(--line); color:var(--ink-faint); font-size:14px}
+  footer .wrap{display:flex; justify-content:space-between; gap:20px; flex-wrap:wrap} footer b{color:var(--ink)}
+  #toTop{position:fixed; right:22px; bottom:22px; z-index:45; width:46px; height:46px; border-radius:50%; background:var(--gold); color:#241a06; border:none; cursor:pointer; font-size:18px; font-weight:700; box-shadow:var(--shadow-lg); opacity:0; pointer-events:none; transition:.25s}
+  #toTop.show{opacity:1; pointer-events:auto} #toTop:hover{background:var(--stable); color:#0c1a16}
+  .reveal{opacity:0; transform:translateY(16px); transition:opacity .55s ease, transform .55s ease} .reveal.in{opacity:1; transform:none}
+</style>
+</head>
+<body>
+<div id="progress"></div>
+<div class="topbar"><div class="wrap">
+  <span class="brand"><span class="dot"></span> Offload-Bench <small>· can you actually hand it over?</small></span>
+  <nav class="topnav">
+    <a href="#reframe">Reframe</a><a href="#borrow">Borrow</a><a href="#gap">The gap</a><a href="#design">Design</a>
+    <a href="#dims">Score</a><a href="#modes">Modes</a><a href="#map">Stewardship</a><a href="#refs">Refs</a>
+    <a class="back" href="index.html">← Proposal</a><a class="back" href="atlas.html">Atlas</a>
+  </nav>
+</div></div>
+
+<nav class="rail" aria-label="section navigation">
+  <a href="#top" data-sec="top"><span class="pip"></span><span class="lbl">Top</span></a>
+  <a href="#reframe" data-sec="reframe"><span class="pip"></span><span class="lbl">The reframe</span></a>
+  <a href="#borrow" data-sec="borrow"><span class="pip"></span><span class="lbl">What to borrow</span></a>
+  <a href="#gap" data-sec="gap"><span class="pip"></span><span class="lbl">The gap</span></a>
+  <a href="#design" data-sec="design"><span class="pip"></span><span class="lbl">Offload-Bench</span></a>
+  <a href="#dims" data-sec="dims"><span class="pip"></span><span class="lbl">The score</span></a>
+  <a href="#autonomy" data-sec="autonomy"><span class="pip"></span><span class="lbl">Autonomy level</span></a>
+  <a href="#modes" data-sec="modes"><span class="pip"></span><span class="lbl">Three modes</span></a>
+  <a href="#map" data-sec="map"><span class="pip"></span><span class="lbl">Stewardship</span></a>
+  <a href="#phasing" data-sec="phasing"><span class="pip"></span><span class="lbl">Phasing</span></a>
+  <a href="#refs" data-sec="refs"><span class="pip"></span><span class="lbl">References</span></a>
+</nav>
+
+<a id="top"></a>
+<header class="hero"><div class="wrap">
+  <div class="kicker">Bolter internal · evaluation design · companion to Stewardship</div>
+  <h1 class="title">If it can't be <em>measured,</em> it can't be <em>handed over.</em></h1>
+  <p class="dek">Bolter's promise is "give a responsibility to an anima and it just works." That's a claim about trust. This is how we put a number on it — borrowing the best of the agent-eval world and adding the parts no one has built.</p>
+  <div class="hero-meta">
+    <span class="chip">🧠 <b>ADHD-friendly</b> read</span>
+    <span class="chip">⏱ <b>5 min</b> skim · <b>16 min</b> full</span>
+    <span class="chip">📚 <b>50+</b> sources surveyed</span>
+    <span class="chip">🔬 a falsifier for the <b>proposal</b></span>
+  </div>
+  <div class="hero-cta">
+    <a class="btn primary" href="#design">See the design →</a>
+    <a class="btn ghost" href="#borrow">What we borrow</a>
+  </div>
+
+  <div class="tldr reveal">
+    <h2>⚡ The whole thing in 30 seconds</h2>
+    <p class="big">"Offloadable" isn't a task score — it's a property of the <b>(person, anima(s), responsibility)</b> triple measured over <b>calendar time.</b> So the eval simulates time, events, a principal with limited attention, and traps. We borrow the proven mechanics — <span class="t">programmatic state-checks, pass^k reliability, checkpoint credit, escalation-F1</span> — and add what nobody has: <span class="s">multi-day persistence, re-grounding after context loss, an attention budget, and a team owning one duty.</span> The output isn't a number; it's a <b>granted autonomy level per responsibility.</b></p>
+  </div>
+</div></header>
+
+<main>
+
+<!-- REFRAME -->
+<section id="reframe"><div class="wrap">
+  <div class="sec-head"><span class="sec-num">01</span><h2 class="sec">Why no existing benchmark fits</h2></div>
+  <p class="sec-sub">// "offloadable" is a property of a relationship over time, not a task result</p>
+  <p class="lede">Every public agent benchmark collapses at least one axis that matters for handing over a standing responsibility. The mechanics are borrowable; the frame is what we have to build.</p>
+
+  <div class="oneline"><div class="zap">⏳</div><div class="txt"><span>Axis #1 — they're single-session</span>τ-bench, GAIA, SWE-bench: one conversation, one goal, one sitting. No days with idle gaps, no "wake on an event next Tuesday."</div></div>
+  <div class="oneline"><div class="zap">🧍</div><div class="txt"><span>Axis #2 — the "human" is a stranger</span>The simulated user is a momentary customer, not a <em>principal you're accountable to</em> who has limited attention and will be annoyed if you over-ask.</div></div>
+  <div class="oneline sig"><div class="zap">🤝</div><div class="txt"><span>Axis #3 — they score the agent, never the handoff</span>The real question — can a <em>person</em> safely rely on this? — is about trust calibration in the pair. No agent benchmark measures it.</div></div>
+
+  <p>The closest long-horizon evals that exist (Vending-Bench, Anthropic's Project Vend) measure <em>profit</em> over a long run, not "did it serve the delegator's evolving intent and know when to ask for help." So we borrow heavily for the mechanics — and treat time, a principal, traps, and a team as the novel core.</p>
+</div></section>
+
+<!-- BORROW -->
+<section id="borrow"><div class="wrap">
+  <div class="sec-head"><span class="sec-num">02</span><h2 class="sec">What's out there worth borrowing</h2></div>
+  <p class="sec-sub">// the building blocks, and the one idea we take from each</p>
+  <p class="lede">A lot of this is solved. We don't reinvent scoring — we assemble it. Three buckets.</p>
+
+  <h3 class="sub">Reliability &amp; horizon — the metrics that expose unreliability</h3>
+  <div class="tblwrap reveal"><table class="tbl">
+    <tr><th>Borrow</th><th>From</th><th>For</th></tr>
+    <tr><td class="metric">pass^k</td><td class="src">τ-bench · Sierra</td><td>Succeed on <b>all</b> k trials, not best-of-k. A 70%/run agent is pass^3 ≈ 34% — "half your customers still need a human." The headline metric.<cite>1</cite></td></tr>
+    <tr><td class="metric">80% time-horizon</td><td class="src">METR</td><td>Express "how big a responsibility, at what reliability." The 50/80 gap <em>is</em> a flakiness signal.<cite>6</cite></td></tr>
+    <tr><td class="metric">pass@k − pass^k gap</td><td class="src">τ-bench / SWE-bench</td><td>Capability vs. dependability spread — an agent that <em>can</em> but won't reliably.<cite>1</cite></td></tr>
+  </table></div>
+
+  <h3 class="sub">Task &amp; environment — how to score what happened</h3>
+  <div class="tblwrap reveal"><table class="tbl">
+    <tr><th>Borrow</th><th>From</th><th>For</th></tr>
+    <tr><td class="metric">Programmatic end-state oracle</td><td class="src">τ-bench · WorkBench · OSWorld</td><td>Deterministic "did the duty get discharged" — no LLM judge needed.<cite>1,9</cite></td></tr>
+    <tr><td class="metric">Checkpoint partial credit</td><td class="src">TheAgentCompany · CMU</td><td>Long timelines need partial credit + a full-completion bonus, not binary pass/fail.<cite>3</cite></td></tr>
+    <tr><td class="metric">LLM principal simulator (persona)</td><td class="src">τ²-bench · CRMArena</td><td>A simulated <em>owner</em>; generate many semantically-equal episodes for pass^k.<cite>2</cite></td></tr>
+    <tr><td class="metric">Expert pairwise rubric</td><td class="src">GDPval · OpenAI</td><td>For soft deliverables with no unit test (a drafted brief, a plan).<cite>4</cite></td></tr>
+  </table></div>
+
+  <h3 class="sub">Delegation-specific — the parts that decide trust</h3>
+  <div class="tblwrap reveal"><table class="tbl">
+    <tr><th>Borrow</th><th>From</th><th>For</th></tr>
+    <tr><td class="metric">Ask-F1 (selective escalation)</td><td class="src">HiL-Bench · Scale</td><td>Did it ask the human at the <em>right</em> time — scoring false vs. missed escalation.<cite>5</cite></td></tr>
+    <tr><td class="metric">Cross-session memory · Proactivity</td><td class="src">π-Bench · LongMemEval</td><td>Does it keep a promise across sessions and resolve hidden intents.<cite>7,8</cite></td></tr>
+    <tr><td class="metric">Standing-instruction half-life</td><td class="src">Multi-IF · AGENTIF</td><td>Constraint-retention over turns (adherence 0.81→0.64 by turn 20 is typical).<cite>10</cite></td></tr>
+    <tr><td class="metric">Success-per-dollar · actions/intervention</td><td class="src">Holistic Agent Leaderboard · AV disengagement reports</td><td>Cost as a first-class score; a "miles per intervention" analogue.<cite>11,12</cite></td></tr>
+    <tr><td class="metric">Long-run variance · meltdown rate</td><td class="src">Vending-Bench · Project Vend</td><td>Report catastrophic-failure %, not just the mean; manipulability ("pushover discounts").<cite>13,14</cite></td></tr>
+    <tr><td class="metric">Irreversible-action containment</td><td class="src">WebGuard</td><td>Did it ask before destructive / irreversible acts.<cite>15</cite></td></tr>
+    <tr><td class="metric">Trust-calibration triad</td><td class="src">Lee &amp; See · Parasuraman &amp; Riley</td><td>Over-/under-trust, commission vs. omission errors — measures the <em>pair</em>, not the agent.<cite>16,17</cite></td></tr>
+    <tr><td class="metric">Autonomy levels L1–L6 + capability-control matrix</td><td class="src">Feng et al. · Cloud Security Alliance</td><td>The deliverable: "trust this anima at L4 for triage, L2 for payments."<cite>18,19</cite></td></tr>
+    <tr><td class="metric">Milestone KPIs (multi-agent)</td><td class="src">MultiAgentBench</td><td>Scoring a team that jointly owns one duty.<cite>20</cite></td></tr>
+  </table></div>
+</div></section>
+
+<!-- GAP -->
+<section id="gap"><div class="wrap">
+  <div class="sec-head"><span class="sec-num">03</span><h2 class="sec">The gap nobody fills</h2></div>
+  <p class="sec-sub">// why we can't just adopt one benchmark — these are net-new</p>
+  <p class="lede">Across 50+ sources, five things that decide real offloadability are measured by <em>nothing</em>. These are the parts Offload-Bench has to invent.</p>
+  <div class="grid">
+    <div class="dcard reveal"><h3>Calendar-time with idle gaps</h3><p>Everything tops out at hours-in-one-sitting or token-count proxies. None model real days where nothing happens, then an event requires waking, re-orienting, and acting.</p></div>
+    <div class="dcard reveal"><h3>Re-grounding after context loss</h3><p>Memory benchmarks test <em>retrieval</em>. None score the actual failure: resuming a half-done duty after a context reset and correctly reconstructing "where I left off and what's still owed."</p></div>
+    <div class="dcard reveal"><h3>Escalation vs. an attention budget</h3><p>HiL-Bench's "human" always answers. None score escalation <em>frequency</em> against a busy principal you must not over-ping — the calibration that makes hands-off bearable.</p></div>
+    <div class="dcard reveal"><h3>A team owning one duty</h3><p>Multi-agent benchmarks score teams solving <em>tasks</em>. None score N animas jointly <em>owning a standing duty</em>: handoffs, shared memory, who's accountable when one drops it.</p></div>
+    <div class="dcard reveal"><h3>Self-detected drift</h3><p>The Vending-Bench "meltdown" is observed from outside. Nothing scores whether the agent notices its <em>own</em> decay over a long tenure and recovers or flags it.</p></div>
+  </div>
+</div></section>
+
+<!-- DESIGN -->
+<section id="design"><div class="wrap">
+  <div class="sec-head"><span class="sec-num">04</span><h2 class="sec">Offload-Bench: the design</h2></div>
+  <p class="sec-sub">// reuse-first — rides bolter_qa_run + the scheduler, not a new engine</p>
+  <p class="lede">Built on what bolter already has. It runs through <code class="inl">bolter_qa_run({ target, taskIds })</code> (the QA-framework-as-platform direction) and the existing <code class="inl">bolter-vs-cc-bench</code> rig. The one new primitive: a <b>virtual clock</b> so days compress to minutes and drive the scheduler — today it's wall-clock <code class="inl">node-cron</code> (Atlas, Stop 03), which is exactly why we make the clock injectable.</p>
+
+  <h3 class="sub">The unit — a Responsibility Scenario</h3>
+  <div class="anatomy reveal">
+    <h4>◇ anatomy of one scenario</h4>
+    <div class="row"><div class="k">charter</div><div class="v">intent + scope + guardrails, in the owner's words (<b>P1</b>).</div></div>
+    <div class="row"><div class="k">acceptance oracle</div><div class="v">a <b>programmatic state-check</b> for "was the duty discharged."</div></div>
+    <div class="row"><div class="k">event timeline</div><div class="v"><span class="evt act">action-required</span><span class="evt quiet">quiet / noise → don't spam</span><span class="evt esc">ambiguous → should escalate</span><span class="evt irr">irreversible → ask first</span><span class="evt man">manipulation → resist</span><span class="evt pref">preference stated → persist</span></div></div>
+    <div class="row"><div class="k">simulated principal</div><div class="v">an LLM persona with an <b>attention budget</b> (≤ N pings / week).</div></div>
+    <div class="row"><div class="k">forced reset</div><div class="v">a context wipe mid-timeline — tests <b>re-grounding</b> (P2).</div></div>
+    <div class="row"><div class="k">budget caps</div><div class="v">tokens / $ / time the duty must stay within (P5).</div></div>
+  </div>
+  <div class="oneline teal"><div class="zap">↻</div><div class="txt"><span>Why a timeline, not a prompt</span>The duty is run as a sequence of clock ticks and injected events — including quiet ticks (where the right move is silence) and traps — so we measure behaviour <em>over tenure</em>, not a single clever answer.</div></div>
+</div></section>
+
+<!-- DIMENSIONS -->
+<section id="dims"><div class="wrap">
+  <div class="sec-head"><span class="sec-num">05</span><h2 class="sec">The score is a profile, not a number</h2></div>
+  <p class="sec-sub">// a single headline number is exactly what hides unreliability</p>
+  <p class="lede">Nine dimensions, each borrowed from a proven source, each catching a distinct delegation failure. They roll up to a granted autonomy level — they don't average into one figure.</p>
+  <div class="grid">
+    <div class="dcard reveal"><div class="dn">1</div><span class="src">τ-bench · WorkBench</span><h3>Acceptance</h3><p>Programmatic state-check: did the duty actually get discharged against the charter's criteria.</p><p class="catch"><b>Catches:</b> looks busy, achieves nothing.</p></div>
+    <div class="dcard reveal"><div class="dn">2</div><span class="src">τ-bench (pass^k)</span><h3>Reliability</h3><p>Run each scenario k times; report pass^k and the pass@k−pass^k gap, plus worst-of-N.</p><p class="catch"><b>Catches:</b> succeeds <em>sometimes</em> — the luck gap.</p></div>
+    <div class="dcard reveal"><div class="dn">3</div><span class="src">TheAgentCompany</span><h3>Checkpoint credit</h3><p>Partial credit across the timeline's checkpoints, with a bonus for full discharge.</p><p class="catch"><b>Catches:</b> binary scoring hiding near-misses.</p></div>
+    <div class="dcard reveal"><div class="dn">4</div><span class="src">HiL-Bench + AV reports</span><h3>Escalation-F1</h3><p>Asked at the right moments, within the attention budget — false vs. missed escalation.</p><p class="catch"><b>Catches:</b> over-pinging, or silently overstepping.</p></div>
+    <div class="dcard reveal"><div class="dn">5</div><span class="src">novel (the gap)</span><h3>Re-grounding</h3><p>After the forced reset: does it reconstruct "where I left off / what's owed" correctly.</p><p class="catch"><b>Catches:</b> restarting from zero; broken promises.</p></div>
+    <div class="dcard reveal"><div class="dn">6</div><span class="src">Multi-IF · π-Bench</span><h3>Instruction half-life</h3><p>Adherence to standing instructions &amp; stated preferences across the whole timeline.</p><p class="catch"><b>Catches:</b> forgetting the rules over time.</p></div>
+    <div class="dcard reveal"><div class="dn">7</div><span class="src">Holistic Agent Leaderboard</span><h3>Cost &amp; intervention</h3><p>Task-success-per-dollar and actions-per-intervention against the budget caps.</p><p class="catch"><b>Catches:</b> right answers that aren't economically viable.</p></div>
+    <div class="dcard reveal"><div class="dn">8</div><span class="src">WebGuard · Project Vend</span><h3>Safety</h3><p>Irreversible-action containment, confident-wrong rate, manipulability under pressure.</p><p class="catch"><b>Catches:</b> confident irreversible mistakes; pushover.</p></div>
+    <div class="dcard reveal"><div class="dn">9</div><span class="src">Vending-Bench</span><h3>Drift / meltdown</h3><p>Catastrophic-failure rate over long runs, and whether decay is self-detected.</p><p class="catch"><b>Catches:</b> silent spirals over a long tenure.</p></div>
+  </div>
+</div></section>
+
+<!-- AUTONOMY -->
+<section id="autonomy"><div class="wrap">
+  <div class="sec-head"><span class="sec-num">06</span><h2 class="sec">The deliverable: a granted autonomy level</h2></div>
+  <p class="sec-sub">// per responsibility-type — the actual answer to "can I hand this over?"</p>
+  <p class="lede">The profile gates an anima to a level on an SAE-style ladder (after Feng et al. / the Cloud Security Alliance), <em>per responsibility-type</em>, with a capability-control matrix that forbids high autonomy over irreversible/high-impact actions until the safety + reliability bars are cleared.</p>
+  <div class="ladder reveal">
+    <div class="rung l1"><div class="lv">L1</div><div class="d"><h4>Suggests</h4><p>Drafts; the human does everything. Human-in-the-loop.</p></div></div>
+    <div class="rung l2"><div class="lv">L2</div><div class="d"><h4>Acts on approval</h4><p>Proposes each action; human approves before it fires. Pre-action oversight.</p></div></div>
+    <div class="rung l3"><div class="lv">L3</div><div class="d"><h4>Acts, escalates on boundary</h4><p>Handles the routine; asks at ambiguous / irreversible edges.</p></div></div>
+    <div class="rung l4"><div class="lv">L4</div><div class="d"><h4>Acts, human monitors</h4><p>Runs the duty; human watches and can intervene. Human-on-the-loop.</p></div></div>
+    <div class="rung l5"><div class="lv">L5</div><div class="d"><h4>Acts, reports after</h4><p>Owns it; consults the human after the fact. Human-out-of-the-loop.</p></div></div>
+    <div class="rung l6"><div class="lv">L6</div><div class="d"><h4>Fully autonomous</h4><p>No routine human involvement. Earned only by the highest profiles, narrow scopes.</p></div></div>
+  </div>
+  <div class="oneline"><div class="zap">🎚️</div><div class="txt"><span>What "it just works" actually means</span>Not "L6 everywhere" — it means each anima carries an honest, evidence-backed level per duty, so a person knows exactly how much they can stop watching.</div></div>
+</div></section>
+
+<!-- MODES -->
+<section id="modes"><div class="wrap">
+  <div class="sec-head"><span class="sec-num">07</span><h2 class="sec">Three modes</h2></div>
+  <p class="sec-sub">// one anima · a team · and the pair with a real human</p>
+  <div class="grid">
+    <div class="dcard reveal"><h3>① Single-anima</h3><p>The baseline. One anima tends one Responsibility Scenario end-to-end across the timeline. Establishes the per-duty profile and autonomy level.</p></div>
+    <div class="dcard reveal"><h3>② Multi-anima (team owns one duty)</h3><p>The <em>same</em> duty split across N animas. Adds team KPIs (MultiAgentBench-style): did the duty stay discharged when one dropped it, consistency across the team, clean handoffs.</p></div>
+    <div class="dcard reveal"><h3>③ Human-pair arm <span style="color:var(--gold-deep);font-size:13px">(highest fidelity)</span></h3><p>Real users, with <b>seeded anima errors</b>, measuring over-/under-trust (Lee &amp; See; Parasuraman &amp; Riley). The only mode that answers "can a <em>person</em> offload safely" — because that's a property of the pair.</p></div>
+  </div>
+  <div class="oneline sig"><div class="zap">!</div><div class="txt"><span>The point of mode ③</span>An anima can be perfect and still un-offloadable if the human can't calibrate when to trust it. Delegation success is measured on the pair, not the model alone.</div></div>
+</div></section>
+
+<!-- MAP -->
+<section id="map"><div class="wrap">
+  <div class="sec-head"><span class="sec-num">08</span><h2 class="sec">It's the falsifier for Stewardship</h2></div>
+  <p class="sec-sub">// each pillar of the proposal becomes a measurable dimension</p>
+  <p class="lede">This isn't a separate project — it's how we find out if the <a href="index.html" style="color:var(--gold-deep)">Stewardship redesign</a> actually works. If the redesign is real, these move against today's self-scheduling baseline; if not, they won't.</p>
+  <div class="tblwrap reveal"><table class="tbl">
+    <tr><th>Pillar</th><th>Becomes this measurement</th></tr>
+    <tr><td class="metric">P1 · Charter</td><td>Acceptance oracle pass-rate (the charter is what the oracle checks)</td></tr>
+    <tr><td class="metric">P2 · Durable state</td><td><b>Re-grounding accuracy</b> after the forced context reset</td></tr>
+    <tr><td class="metric">P3 · Wake on signals</td><td>Event-timeline wake correctness — acts on real events, stays quiet on noise</td></tr>
+    <tr><td class="metric">P4 · Fresh-lens progress</td><td>Escalation-F1 + corrupt-success rate (right end via wrong path)</td></tr>
+    <tr><td class="metric">P5 · Adaptive cadence + escalation</td><td>Intervention budget adherence + drift / meltdown rate</td></tr>
+    <tr><td class="metric">P6 · Short beats, serialize writes</td><td>Cost-per-discharge + pass^k reliability</td></tr>
+  </table></div>
+</div></section>
+
+<!-- PHASING -->
+<section id="phasing"><div class="wrap">
+  <div class="sec-head"><span class="sec-num">09</span><h2 class="sec">How to build it, cheap first</h2></div>
+  <p class="sec-sub">// a baseline in two weeks, a real bench in a quarter</p>
+  <div class="flow">
+    <div class="step reveal"><div class="ic">P0</div><div class="cont"><h4>Baseline (~1–2 weeks)</h4><p>6–8 hand-authored scenarios, virtual clock, programmatic oracles + one LLM-judge dimension, pass^k = 5, on the existing harness. Score today's self-scheduling anima — establish the "before."</p><p class="mini">reuse bolter_qa_run · bolter-vs-cc-bench rig</p></div></div>
+    <div class="step reveal"><div class="ic">P1</div><div class="cont"><h4>Delegation dimensions</h4><p>Add escalation-F1 against an attention budget, the forced-reset re-grounding test, and cost / intervention budgets. Now it measures the things task benchmarks can't.</p><p class="mini">escalation-F1 · re-grounding · budgets</p></div></div>
+    <div class="step reveal"><div class="ic">P2</div><div class="cont"><h4>Scale &amp; the human arm</h4><p>A scenario <em>generator</em> + holdout set; the multi-agent (team-owns-one-duty) mode; and the human-pair arm for trust calibration with real users.</p><p class="mini">generated scenarios · multi-agent · human-pair</p></div></div>
+  </div>
+  <div class="oneline teal"><div class="zap">★</div><div class="txt"><span>Lead with these three</span><b>pass^k</b>, the <b>80% time-horizon</b>, and <b>escalation-F1</b> — grade each anima to an autonomy level per responsibility-type, and report the profile, never a single number.</div></div>
+</div></section>
+
+<!-- REFS -->
+<section id="refs"><div class="wrap">
+  <div class="sec-head"><span class="sec-num">10</span><h2 class="sec">References</h2></div>
+  <p class="sec-sub">// primary sources; ~50 surveyed, the load-bearing ones here</p>
+  <div class="refs">
+    <div class="ref"><cite>1</cite> Yao et&nbsp;al. <b>τ-bench: Tool-Agent-User Interaction</b> (pass^k). Sierra, 2024. <a href="https://arxiv.org/abs/2406.12045">arxiv.org/abs/2406.12045</a></div>
+    <div class="ref"><cite>2</cite> <b>τ²-bench: dual-control conversational agents.</b> Sierra, 2025. <a href="https://openreview.net/forum?id=LGmO9VvuP5">openreview.net/forum?id=LGmO9VvuP5</a></div>
+    <div class="ref"><cite>3</cite> <b>TheAgentCompany</b> (checkpoint partial credit). CMU, 2024. <a href="https://arxiv.org/pdf/2412.14161">arxiv.org/pdf/2412.14161</a></div>
+    <div class="ref"><cite>4</cite> <b>GDPval</b> (expert pairwise rubric). OpenAI, 2025. <a href="https://arxiv.org/abs/2510.04374">arxiv.org/abs/2510.04374</a></div>
+    <div class="ref"><cite>5</cite> <b>HiL-Bench: do agents know when to ask?</b> (Ask-F1). Scale, 2026. <a href="https://arxiv.org/abs/2604.09408">arxiv.org/abs/2604.09408</a></div>
+    <div class="ref"><cite>6</cite> METR. <b>Measuring AI Ability to Complete Long Tasks</b> (time horizon). 2025. <a href="https://metr.org/blog/2025-03-19-measuring-ai-ability-to-complete-long-tasks/">metr.org</a></div>
+    <div class="ref"><cite>7</cite> <b>π-Bench: proactive personal assistants, long-horizon.</b> 2026. <a href="https://arxiv.org/html/2605.14678">arxiv.org/html/2605.14678</a></div>
+    <div class="ref"><cite>8</cite> <b>LongMemEval</b> (multi-session memory). <a href="https://arxiv.org/abs/2410.10813">arxiv.org/abs/2410.10813</a></div>
+    <div class="ref"><cite>9</cite> <b>WorkBench</b> (outcome-centric, harmful-action tracking). 2024. <a href="https://arxiv.org/abs/2405.00823">arxiv.org/abs/2405.00823</a></div>
+    <div class="ref"><cite>10</cite> <b>AGENTIF / Multi-IF</b> (instruction-following over turns). 2025. <a href="https://arxiv.org/pdf/2505.16944">arxiv.org/pdf/2505.16944</a></div>
+    <div class="ref"><cite>11</cite> <b>Holistic Agent Leaderboard</b> (cost-aware, Pareto). 2025. <a href="https://arxiv.org/pdf/2510.11977">arxiv.org/pdf/2510.11977</a></div>
+    <div class="ref"><cite>12</cite> California DMV. <b>AV Disengagement Reports</b> (miles per intervention). <a href="https://www.dmv.ca.gov/portal/vehicle-industry-services/autonomous-vehicles/disengagement-reports/">dmv.ca.gov</a></div>
+    <div class="ref"><cite>13</cite> Andon Labs. <b>Vending-Bench</b> (long-term coherence, meltdowns). 2025. <a href="https://arxiv.org/abs/2502.15840">arxiv.org/abs/2502.15840</a></div>
+    <div class="ref"><cite>14</cite> Anthropic. <b>Project Vend</b> (real long-run delegation, failure catalog). 2025. <a href="https://www.anthropic.com/research/project-vend-1">anthropic.com/research/project-vend-1</a></div>
+    <div class="ref"><cite>15</cite> <b>WebGuard</b> (irreversible-action guardrail metrics). 2025. <a href="https://arxiv.org/pdf/2507.14293">arxiv.org/pdf/2507.14293</a></div>
+    <div class="ref"><cite>16</cite> Lee &amp; See. <b>Trust in Automation: Designing for Appropriate Reliance.</b> Human Factors, 2004. <a href="https://journals.sagepub.com/doi/10.1518/hfes.46.1.50_30392">sagepub</a></div>
+    <div class="ref"><cite>17</cite> Parasuraman &amp; Riley. <b>Humans and Automation: Use, Misuse, Disuse, Abuse.</b> 1997. <a href="https://journals.sagepub.com/doi/10.1518/001872097778543886">sagepub</a></div>
+    <div class="ref"><cite>18</cite> Feng, McDonald &amp; Zhang. <b>Levels of Autonomy for AI Agents.</b> 2025. <a href="https://arxiv.org/pdf/2506.12469">arxiv.org/pdf/2506.12469</a></div>
+    <div class="ref"><cite>19</cite> Cloud Security Alliance. <b>Autonomy Levels for Agentic AI</b> (capability-control matrix). 2026. <a href="https://cloudsecurityalliance.org/blog/2026/01/28/levels-of-autonomy">cloudsecurityalliance.org</a></div>
+    <div class="ref"><cite>20</cite> <b>MultiAgentBench (MARBLE)</b> (milestone KPIs, collaboration). UIUC, 2025. <a href="https://aclanthology.org/2025.acl-long.421/">aclanthology.org</a></div>
+    <div class="ref"><cite>+</cite> Also drawn on: GAIA, AgentBench, OSWorld, WebArena, SWE-bench Verified, MLE-bench, Terminal-Bench, CRMArena-Pro, BrowseComp, CORPGEN/MHTE, PrefEval, Parasuraman &amp; Manzey (complacency/automation bias).</div>
+  </div>
+  <p style="margin-top:18px; color:var(--ink-faint); font-size:14px">Caveat: a few specific figures (some leaderboard scores, Vending-Bench&nbsp;2 dollar amounts) came from secondary snippets where primary pages were blocked — verify before quoting externally. Metric definitions and benchmark mechanics are from the primary sources above.</p>
+</div></section>
+
+</main>
+
+<footer><div class="wrap">
+  <span>📍 <b>Bolter internal</b> — Offload-Bench design · companion to the Stewardship proposal &amp; Codebase Atlas · shared via secret link.</span>
+  <span>Synthesis of 50+ sources · the falsifier for "it just works."</span>
+</div></footer>
+
+<button id="toTop" aria-label="Back to top">↑</button>
+<script>
+(function(){
+  var prog=document.getElementById('progress'); var toTop=document.getElementById('toTop');
+  function onScroll(){ var h=document.documentElement; var sc=h.scrollTop||document.body.scrollTop;
+    var max=(h.scrollHeight-h.clientHeight)||1; prog.style.width=Math.min(100,sc/max*100)+'%'; toTop.classList.toggle('show',sc>700); }
+  document.addEventListener('scroll',onScroll,{passive:true}); onScroll();
+  toTop.addEventListener('click',function(){ window.scrollTo({top:0,behavior:'smooth'}); });
+  var rail=document.querySelectorAll('.rail a');
+  var secs=Array.from(rail).map(function(a){ return {a:a, el:document.getElementById(a.getAttribute('data-sec'))}; }).filter(function(s){return s.el;});
+  function active(){ var pos=(window.scrollY||0)+window.innerHeight*0.32; var cur=secs[0];
+    secs.forEach(function(s){ if(s.el.offsetTop<=pos) cur=s; });
+    rail.forEach(function(a){a.classList.remove('active');}); if(cur) cur.a.classList.add('active'); }
+  document.addEventListener('scroll',active,{passive:true}); active();
+  if('IntersectionObserver' in window && !window.matchMedia('(prefers-reduced-motion: reduce)').matches){
+    var io=new IntersectionObserver(function(es){ es.forEach(function(e){ if(e.isIntersecting){ e.target.classList.add('in'); io.unobserve(e.target);} }); },{threshold:0.1});
+    document.querySelectorAll('.reveal').forEach(function(el){ io.observe(el); });
+  } else { document.querySelectorAll('.reveal').forEach(function(el){ el.classList.add('in'); }); }
+})();
+</script>
+</body>
+</html>
