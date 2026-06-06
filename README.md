@@ -19,6 +19,7 @@ See [`PLAN.md`](./PLAN.md) for the full plan and the six-pillar summary.
 ## Files
 - `index.html` — the proposal. Self-contained (CDN fonts only); open it directly or serve statically.
 - `atlas.html` — **Codebase Atlas**: an 11-stop guided tour of the load-bearing areas, domain model, and key routines underpinning the change surface, with verbatim code inline. Live: `…/stewardship-36fd628d/atlas.html`. Cross-linked from the proposal.
+- `eval.html` — **Offload-Bench**: a bolter-specific evaluation for how well a person can offload a complex responsibility to one or many animas — what to borrow from existing agent benchmarks (pass^k, time-horizon, escalation-F1, trust calibration, autonomy levels), the gaps nobody fills, a 9-dimension scoring profile, three modes, and how it falsifies the Stewardship pillars. Live: `…/stewardship-36fd628d/eval.html`.
 - `PLAN.md` — the plan, the proposal in one screen, and the Bolter code mapping.
 - `README.md` — this file.
 
